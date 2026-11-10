@@ -1,10 +1,9 @@
-# Spec Delta
+# roster-management Specification
 
 ## Purpose
-
 Lets a user build and maintain the list of their characters, with class and item level, by entering them manually, since no public roster API covers the EU/NA game service.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Create tracker with initial characters
 The system SHALL let the user create a tracker by entering one or more characters, each with a name, a class selected from the fixed list of Lost Ark classes, and an ilvl.
@@ -35,3 +34,10 @@ The system SHALL NOT allow two characters with the same name within one tracker.
 #### Scenario: Duplicate name
 - **WHEN** the user adds a character whose name already exists in the tracker
 - **THEN** the system rejects it with an error
+
+### Requirement: Custom character order
+The system SHALL let the user drag characters to reorder them and SHALL persist the order, placing newly added characters last.
+
+#### Scenario: Reorder
+- **WHEN** the user drags a character card to a new position
+- **THEN** the new order is saved and shown after reloading the page

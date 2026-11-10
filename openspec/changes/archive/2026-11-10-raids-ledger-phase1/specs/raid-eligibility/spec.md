@@ -17,12 +17,27 @@ The system SHALL list for each character the raids and difficulties whose minimu
 - **WHEN** a character's ilvl is below a raid's minimum ilvl
 - **THEN** that raid is not shown as clearable for the character
 
-### Requirement: Highest difficulty per raid
-The system SHALL present, per raid, only the highest difficulty the character is eligible for, unless the raid has a single difficulty.
+### Requirement: One difficulty per raid, chosen by the user
+The system SHALL present each eligible raid once, using the highest eligible difficulty by default, and SHALL let the user pick any lower difficulty the character still qualifies for, persisting that choice per character and raid.
 
 #### Scenario: Eligible for several difficulties
 - **WHEN** a character qualifies for both Normal and Hard of a raid
-- **THEN** only the Hard entry is offered for that raid
+- **THEN** only the Hard entry is shown by default, with a selector offering Normal and Hard
+
+#### Scenario: Preferred difficulty no longer eligible
+- **WHEN** a stored preferred difficulty is no longer eligible for the character's ilvl
+- **THEN** the highest eligible difficulty is used instead
+
+### Requirement: Gold per raid and weekly total
+The system SHALL show the gold reward of each raid and difficulty, and the gold earned this week per character, counting only its 3 highest-paying cleared raids. Past weeks SHALL show the same total.
+
+#### Scenario: Weekly total
+- **WHEN** a character has cleared raids paying 54,000, 50,000, 50,000 and 38,000 gold
+- **THEN** the weekly total is 154,000 gold
+
+#### Scenario: Gold not published
+- **WHEN** a raid has no gold value in the table
+- **THEN** it is shown without a value and counts as zero
 
 ### Requirement: Raid data is data-driven
 The system SHALL derive eligibility from a raid requirements table that can be updated without changing eligibility logic.
