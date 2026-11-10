@@ -21,7 +21,7 @@ export function classSelect(groups) {
 }
 
 const ICONS = {
-  Berserker: "🪓", Destroyer: "🔨", Gunlancer: "🛡️", Paladin: "✨", Slayer: "⚔️", Valkyrie: "🪽",
+  Berserker: "🪓", Destroyer: "🔨", Gunlancer: "🛡️", "Guardian Knight": "🐴", Paladin: "✨", Slayer: "⚔️", Valkyrie: "🪽",
   Wardancer: "🥋", Scrapper: "🥊", Soulfist: "🔥", Glaivier: "🔱", Striker: "⚡", Breaker: "💥",
   Deadeye: "🎯", Gunslinger: "🔫", Artillerist: "💣", Machinist: "⚙️", Sharpshooter: "🏹",
   Bard: "🎵", Arcanist: "🃏", Summoner: "🌿", Sorceress: "❄️",
