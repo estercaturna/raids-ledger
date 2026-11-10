@@ -6,7 +6,7 @@ export interface ClassGroup {
 export const CLASS_GROUPS: ClassGroup[] = [
   { group: "Warrior", classes: ["Berserker", "Destroyer", "Gunlancer", "Guardian Knight", "Paladin", "Slayer", "Valkyrie"] },
   { group: "Martial Artist", classes: ["Wardancer", "Scrapper", "Soulfist", "Glaivier", "Striker", "Breaker"] },
-  { group: "Gunner", classes: ["Deadeye", "Gunslinger", "Artillerist", "Machinist", "Sharpshooter", "Scouter"] },
+  { group: "Gunner", classes: ["Deadeye", "Gunslinger", "Artillerist", "Machinist", "Sharpshooter"] },
   { group: "Mage", classes: ["Bard", "Arcanist", "Summoner", "Sorceress"] },
   { group: "Assassin", classes: ["Deathblade", "Shadowhunter", "Reaper", "Souleater"] },
   { group: "Specialist", classes: ["Artist", "Aeromancer", "Wildsoul", "Dimensionalist"] },
