@@ -85,6 +85,8 @@ function difficultyControl(ch, raid) {
 function raidChip(ch, raid) {
   const input = el("input", { type: "checkbox", checked: raid.cleared });
   raid.input = input;
+  input.addEventListener("focus", () => input.matches(":focus-visible") && raid.label.classList.add("focus"));
+  input.addEventListener("blur", () => raid.label.classList.remove("focus"));
   input.addEventListener("change", async () => {
     raid.cleared = input.checked;
     updateProgress(ch);
@@ -97,7 +99,16 @@ function raidChip(ch, raid) {
       showError(e.message);
     }
   });
-  return el("li", {}, el("label", { className: "raid" }, input, el("span", { className: "check", textContent: "✓" }), el("span", { className: "name", textContent: raid.name }), difficultyControl(ch, raid), el("span", { className: "gold", textContent: raid.gold ? fmtGold(raid.gold) : "—", title: raid.gold ? "" : "Gold not published yet" })));
+  const label = el("label", { className: "raid" }, input, el("span", { className: "check", textContent: "✓" }), el("span", { className: "name", textContent: raid.name }), difficultyControl(ch, raid), el("span", { className: "gold", textContent: raid.gold ? fmtGold(raid.gold) : "—", title: raid.gold ? "" : "Gold not published yet" }));
+  raid.label = label;
+  syncRaidState(raid);
+  return el("li", {}, label);
+}
+
+// Plain classes instead of :has(input:checked), which leaves ghost text in Chromium when toggled.
+function syncRaidState(raid) {
+  raid.label.classList.toggle("done", raid.cleared);
+  raid.label.classList.toggle("locked", raid.input.disabled);
 }
 
 const progressEls = new Map();
@@ -108,7 +119,11 @@ function updateProgress(ch) {
   const max = Math.min(MAX_RAIDS, ch.raids.length);
   p.text.textContent = `${done}/${max}`;
   // At the limit, the remaining raids can't be ticked until one is cleared.
-  for (const r of ch.raids) if (r.input) r.input.disabled = !r.cleared && done >= MAX_RAIDS;
+  for (const r of ch.raids) {
+    if (!r.input) continue;
+    r.input.disabled = !r.cleared && done >= MAX_RAIDS;
+    syncRaidState(r);
+  }
   p.gold.textContent = `${fmtGold(topGold(ch.raids.filter((r) => r.cleared).map((r) => r.gold ?? 0)))} this week`;
   p.bar.style.width = max ? `${(done / max) * 100}%` : "0";
 }

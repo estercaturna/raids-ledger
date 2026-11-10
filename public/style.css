@@ -80,10 +80,15 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .raid:hover { border-color: rgba(139, 92, 246, .6); }
 .raid input { position: absolute; opacity: 0; pointer-events: none; }
 .raid .check { width: 1.25rem; height: 1.25rem; flex: none; border-radius: .4rem; border: 2px solid #475569; display: grid; place-items: center; font-size: .8rem; line-height: 1; color: transparent; }
-.raid:has(input:checked) { background: rgba(52, 211, 153, .1); border-color: rgba(52, 211, 153, .5); }
-.raid:has(input:checked) .check { background: var(--ok); border-color: var(--ok); color: #022c22; }
-.raid:has(input:focus-visible) { outline: 2px solid var(--accent); }
-.raid:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+.raid.done { background: rgba(52, 211, 153, .1); border-color: rgba(52, 211, 153, .5); }
+.raid.done .check { background: var(--ok); border-color: var(--ok); color: #022c22; }
+.raid.focus { outline: 2px solid var(--accent); }
+/* Dimmed with plain colors: opacity on a row made Chrome paint its text again one row lower. */
+.raid.locked { cursor: not-allowed; background: rgba(30, 41, 59, .25); border-color: rgba(51, 65, 85, .5); }
+.raid.locked .name { color: #64748b; }
+.raid.locked .check { border-color: #334155; }
+.raid.locked .gold { color: rgba(251, 191, 36, .4); }
+.raid.locked select.diff.diff, .raid.locked .badge.badge { color: #64748b; border-color: rgba(51, 65, 85, .5); }
 .raid.readonly { cursor: default; }
 .raid .name { flex: 1; font-weight: 500; }
 .badge { font-size: .7rem; padding: .15rem .5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
