@@ -1,0 +1,24 @@
+{
+  "name": "raids-ledger",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*",
+      "/t/*"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "raids-ledger",
+      "database_id": "743a368f-3fe3-4c5a-8385-4bc3618dd019",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "RESET_HOUR_UTC": "10"
+  }
+}

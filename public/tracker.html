@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#391A84">
+  <title>Raids Ledger</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main>
+    <a class="brand" href="/"><img src="/logo.svg" alt="" width="36" height="36"><h1>Raids <span>Ledger</span></h1></a>
+    <div id="notice" class="notice" hidden>
+      <strong>Keep this link private.</strong> Anyone with it can view and edit this tracker. Bookmark it: there is no login or recovery.
+      <div class="linkrow"><input id="link" readonly> <button type="button" id="copy">Copy</button></div>
+    </div>
+    <p id="error" class="error" role="alert"></p>
+    <section class="toolbar">
+      <label class="weekpill">Week <select id="week"></select></label>
+      <span class="spacer"></span>
+      <button type="button" id="markall">Mark all (everyone)</button>
+      <button type="button" id="addtoggle" class="primary">+ Add character</button>
+    </section>
+    <form id="addform" class="addform" hidden>
+      <input name="name" placeholder="Character name" maxlength="32" required>
+      <span id="addclass"></span>
+      <input name="ilvl" type="number" step="any" min="1" placeholder="Item level" required>
+      <button type="submit" class="primary">Add</button>
+    </form>
+    <div id="characters" class="grid"></div>
+  </main>
+  <script type="module" src="/tracker.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#391A84">
+  <title>Raids Ledger</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="hero">
+    <img class="logo" src="/logo.svg" alt="" width="72" height="72">
+    <h1>Raids <span>Ledger</span></h1>
+    <p class="lead">Track your weekly Lost Ark raid clears across all your characters. No login: you get a secret link to your tracker.</p>
+    <form id="form" class="panel" novalidate>
+      <div id="rows"></div>
+      <p id="error" class="error" role="alert"></p>
+      <div class="actions">
+        <button type="button" id="add">+ Add character</button>
+        <button type="submit" class="primary">Create tracker</button>
+      </div>
+    </form>
+  </main>
+  <script type="module" src="/landing.js"></script>
+</body>
+</html>
