@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { CLASS_GROUPS } from "./classes";
-import { eligibleRaids, GOLD_RAIDS_PER_CHARACTER, RAIDS, weeklyGold, type RaidPrefs } from "./raids";
+import { eligibleRaids, GOLD_RAIDS_PER_CHARACTER, RAIDS, weeklyBoundGold, weeklyGold, type RaidPrefs } from "./raids";
 import { generateToken, hashToken } from "./token";
 import { validateCharacter, validateRoster, type CharacterInput } from "./validation";
 import { rotationName, weekStartIso } from "./week";
@@ -123,7 +123,7 @@ app.get("/api/t/:token", async (c) => {
     ...(rotation && { rotation: { name: rotation } }),
     characters: characters.map((ch) => {
       const raids = eligibleRaids(ch.ilvl, RAIDS, prefs.get(ch.id)).map((r) => ({ ...r, cleared: cleared.has(`${ch.id}:${r.key}`) }));
-      return { ...ch, raids, weeklyGold: weeklyGold(raids.filter((r) => r.cleared).map((r) => r.key)) };
+      return { ...ch, raids, weeklyGold: weeklyGold(raids.filter((r) => r.cleared).map((r) => r.key)), weeklyBound: weeklyBoundGold(raids.filter((r) => r.cleared).map((r) => r.key)) };
     }),
   });
 });
@@ -287,7 +287,7 @@ app.get("/api/t/:token/history", async (c) => {
     weeks: [...weeks].map(([weekStart, chars]) => ({
       weekStart,
       ...(rotationOn && { rotationName: weekRotation(c.env, weekStart) }),
-      characters: [...chars.values()].map((ch) => ({ ...ch, weeklyGold: weeklyGold(ch.clears) })),
+      characters: [...chars.values()].map((ch) => ({ ...ch, weeklyGold: weeklyGold(ch.clears), weeklyBound: weeklyBoundGold(ch.clears) })),
     })),
   });
 });

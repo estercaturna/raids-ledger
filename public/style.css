@@ -64,7 +64,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .addform { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr 1.3fr auto; gap: .5rem; margin-bottom: 1.25rem; }
 @media (max-width: 640px) { .addform { grid-template-columns: 1fr 1fr; } }
 
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 1rem; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: .8rem; }
 .card header { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
 .who { display: flex; gap: .7rem; align-items: center; min-width: 0; }
@@ -124,7 +124,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .card--strong { box-shadow: 0 0 0 2px #c084fc, 0 0 14px rgba(244, 114, 182, .35); border-color: #f472b6; }
 .raid .gold { color: #fbbf24; font-size: .8rem; font-variant-numeric: tabular-nums; min-width: 4.5rem; text-align: right; }
 .weekgold { font-weight: 600; color: #fbbf24; font-variant-numeric: tabular-nums; }
-.roster { display: flex; flex-direction: column; width: fit-content; margin: 0 0 1.25rem; padding: .7rem 1rem; border: 1px solid var(--border); border-radius: .8rem; background: var(--card); }
+.roster { display: flex; flex-direction: row; gap: 2rem; width: fit-content; margin: 0 0 1.25rem; padding: .7rem 1rem; border: 1px solid var(--border); border-radius: .8rem; background: var(--card); }
 .roster small { color: var(--muted); }
 .roster strong { color: #fbbf24; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 
@@ -132,8 +132,13 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .row > *, .addform > *, .card, .raids > li, .raid .name { min-width: 0; }
 .row input, .row select, .addform input, .addform select { width: 100%; }
 .raids { grid-template-columns: minmax(0, 1fr); }
-.raid { padding: .55rem .65rem; gap: .55rem; }
+.raid { padding: .55rem .65rem; gap: .6rem; }
 .raid select.diff { max-width: 7.5rem; }
 .rotation { display: inline-flex; align-items: center; gap: .5rem; margin: 0 0 .9rem; padding: .6rem 1rem; font-weight: 600; color: #c084fc; background: var(--card); border: 1px solid #c084fc; border-radius: 1rem; box-shadow: 0 0 14px rgba(192, 132, 252, .25); backdrop-filter: blur(6px); }
 .rotation[hidden] { display: none; }
 .rotation-name { color: #fff; }
+.raid .badge, .raid select.diff { box-sizing: border-box; flex: none; width: 5rem; max-width: none; height: 1.7rem; padding: 0 .5rem; font-size: .75rem; line-height: 1; text-align: center; text-align-last: center; display: inline-flex; align-items: center; justify-content: center; }
+.raid select.diff { display: inline-block; line-height: 1.5; }
+.raid .name { line-height: 1.25; margin-right: .25rem; }
+.raid .gold { min-width: 3.8rem; }
+.roster .stat { display: flex; flex-direction: column; }

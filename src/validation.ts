@@ -28,8 +28,8 @@ export function validateCharacter(input: unknown): { value?: CharacterInput; err
 
   let cp: number | null = null;
   if (raw.cp !== undefined && raw.cp !== null && raw.cp !== "") {
-    if (typeof raw.cp === "number" && Number.isInteger(raw.cp) && raw.cp > 0 && raw.cp <= MAX_CP) cp = raw.cp;
-    else errors.cp = `CP must be a whole number between 1 and ${MAX_CP.toLocaleString("en-US")}`;
+    if (typeof raw.cp === "number" && Number.isFinite(raw.cp) && raw.cp > 0 && raw.cp <= MAX_CP) cp = raw.cp;
+    else errors.cp = `CP must be a number between 1 and ${MAX_CP.toLocaleString("en-US")}`;
   }
 
   if (Object.keys(errors).length) return { errors };

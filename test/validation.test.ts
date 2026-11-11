@@ -33,7 +33,7 @@ describe("combat power", () => {
     for (const empty of [undefined, null, ""]) expect(ok(empty).value?.cp).toBeNull();
   });
 
-  it.each([0, -1, 12.5, 100_000_001, "abc"])("rejects CP %s", (cp) => {
+  it.each([0, -1, 100_000_001, "abc"])("rejects CP %s", (cp) => {
     expect(ok(cp).errors?.cp).toBeDefined();
   });
 });

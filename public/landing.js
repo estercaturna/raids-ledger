@@ -9,7 +9,7 @@ function addRow() {
   row.className = "row";
   const name = Object.assign(document.createElement("input"), { name: "name", placeholder: "Character name", maxLength: 32 });
   const ilvl = Object.assign(document.createElement("input"), { name: "ilvl", placeholder: "Item level", type: "number", step: "any", min: 1 });
-  const cp = Object.assign(document.createElement("input"), { name: "cp", placeholder: "CP (optional)", type: "number", step: 1, min: 1 });
+  const cp = Object.assign(document.createElement("input"), { name: "cp", placeholder: "CP (optional)", type: "number", step: "any", min: 1 });
   const remove = Object.assign(document.createElement("button"), { type: "button", className: "remove", textContent: "✕", title: "Remove this character" });
   remove.addEventListener("click", () => rows.children.length > 1 && row.remove());
   row.append(name, classSelect(groups), ilvl, cp, remove);

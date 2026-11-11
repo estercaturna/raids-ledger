@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eligibleRaids, weeklyGold, type RaidEntry } from "../src/raids";
+import { eligibleRaids, weeklyBoundGold, weeklyGold, type RaidEntry } from "../src/raids";
 
 const table: RaidEntry[] = [
   { raid: "a", name: "A", difficulty: "normal", minIlvl: 1400 },
@@ -33,5 +33,18 @@ describe("weeklyGold", () => {
     expect(weeklyGold(["a-normal", "b-normal", "c-normal", "d-normal", "e-normal"], gold)).toBe(90);
     expect(weeklyGold(["a-normal", "e-normal"], gold)).toBe(10);
     expect(weeklyGold([], gold)).toBe(0);
+  });
+});
+
+describe("weeklyBoundGold", () => {
+  const table: RaidEntry[] = [
+    { raid: "a", name: "A", difficulty: "normal", minIlvl: 1, gold: 40, bound: 20 },
+    { raid: "b", name: "B", difficulty: "hard", minIlvl: 1, gold: 30 },
+    { raid: "c", name: "C", difficulty: "normal", minIlvl: 1, gold: 20, bound: 20 },
+    { raid: "d", name: "D", difficulty: "normal", minIlvl: 1, gold: 10, bound: 10 },
+  ];
+
+  it("sums bound gold of only the top-paying raids", () => {
+    expect(weeklyBoundGold(["a-normal", "b-hard", "c-normal", "d-normal"], table)).toBe(40);
   });
 });

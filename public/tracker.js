@@ -48,6 +48,8 @@ const MAX_RAIDS = 3; // gold-earning raids per character per week
 const fmtGold = (n) => `${n.toLocaleString("en-US")} G`;
 // Same rule as the server: only the 3 highest-paying cleared raids award gold.
 const topGold = (golds) => golds.sort((a, b) => b - a).slice(0, MAX_RAIDS).reduce((s, g) => s + g, 0);
+// Character-bound part of the same top-paying cleared raids.
+const topBound = (raids) => [...raids].sort((a, b) => (b.gold ?? 0) - (a.gold ?? 0)).slice(0, MAX_RAIDS).reduce((s, r) => s + (r.bound ?? 0), 0);
 
 const fmtWeek = (iso) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 const prettyKey = (key) => key.replace(/-/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
@@ -129,16 +131,20 @@ function updateProgress(ch) {
     syncRaidState(r);
   }
   ch.weekGold = topGold(ch.raids.filter((r) => r.cleared).map((r) => r.gold ?? 0));
+  ch.weekBound = topBound(ch.raids.filter((r) => r.cleared));
   p.gold.textContent = `${fmtGold(ch.weekGold)} this week`;
   p.bar.style.width = max ? `${(done / max) * 100}%` : "0";
   updateRoster();
 }
 
 function updateRoster() {
-  const week = viewWeek === "current"
-    ? state.characters.reduce((s, c) => s + (c.weekGold ?? 0), 0)
-    : (history.find((h) => h.weekStart === viewWeek)?.characters ?? []).reduce((s, c) => s + c.weeklyGold, 0);
-  $("roster").replaceChildren(el("small", { textContent: "Roster total" }), el("strong", { textContent: fmtGold(week) }));
+  const rows = viewWeek === "current"
+    ? state.characters.map((c) => ({ total: c.weekGold ?? 0, bound: c.weekBound ?? 0 }))
+    : (history.find((h) => h.weekStart === viewWeek)?.characters ?? []).map((c) => ({ total: c.weeklyGold, bound: c.weeklyBound ?? 0 }));
+  const bound = rows.reduce((s, c) => s + c.bound, 0);
+  const tradable = rows.reduce((s, c) => s + c.total - c.bound, 0);
+  const stat = (label, value) => el("div", { className: "stat" }, el("small", { textContent: label }), el("strong", { textContent: fmtGold(value) }));
+  $("roster").replaceChildren(stat("Character Gold total", bound), stat("Roster Gold total", tradable));
   $("roster").hidden = false;
 }
 
@@ -147,7 +153,7 @@ function editForm(ch, card) {
   const cls = classSelect(groups);
   cls.value = ch.class;
   const ilvl = el("input", { name: "ilvl", type: "number", step: "any", min: 1, value: ch.ilvl });
-  const cp = el("input", { name: "cp", type: "number", step: 1, min: 1, placeholder: "CP (optional)", value: ch.cp ?? "" });
+  const cp = el("input", { name: "cp", type: "number", step: "any", min: 1, placeholder: "CP (optional)", value: ch.cp ?? "" });
   const save = el("button", { type: "submit", className: "primary", textContent: "Save" });
   const cancel = el("button", { type: "button", textContent: "Cancel" });
   const form = el("form", { className: "addform" }, name, cls, ilvl, cp, save);
@@ -166,6 +172,9 @@ function editForm(ch, card) {
   card.replaceChildren(form);
 }
 
+// Newest raid first on the cards.
+const RAID_ORDER = ["belgardin", "horizon-cathedral", "serca", "kazeros", "armoche"];
+const raidRank = (r) => { const i = RAID_ORDER.indexOf(r.raid); return i === -1 ? RAID_ORDER.length : i; };
 const SUPPORT_CLASSES = new Set(["Bard", "Paladin", "Artist"]);
 const HIGHLIGHT_COUNT = 2; // strong characters after the MVP
 
@@ -203,13 +212,13 @@ function characterCard(ch, tiers) {
   progressEls.set(ch.id, { text, bar, gold });
   card.append(
     el("header", {},
-      el("div", { className: "who" }, grip, avatar, el("div", {}, el("h2", { textContent: ch.name }), el("small", {}, `${ch.class} · `, el("span", { className: "ilvl", textContent: ch.ilvl })), ch.cp ? el("small", { className: `cp ${SUPPORT_CLASSES.has(ch.class) ? "cp--support" : "cp--dps"}`, textContent: `CP · ${ch.cp.toLocaleString("en-US")}` }) : "")),
+      el("div", { className: "who" }, grip, avatar, el("div", {}, el("h2", { textContent: ch.name }), el("small", {}, `${ch.class} · `, el("span", { className: "ilvl", textContent: ch.ilvl.toFixed(2) })), ch.cp ? el("small", { className: `cp ${SUPPORT_CLASSES.has(ch.class) ? "cp--support" : "cp--dps"}`, textContent: `CP · ${ch.cp.toFixed(2)}` }) : "")),
       el("span", { className: "progress" }, text),
     ),
     el("div", { className: "bar" }, bar),
     gold,
   );
-  if (ch.raids.length) card.append(el("ul", { className: "raids" }, ...ch.raids.map((r) => raidChip(ch, r))));
+  if (ch.raids.length) card.append(el("ul", { className: "raids" }, ...[...ch.raids].sort((a, b) => raidRank(a) - raidRank(b)).map((r) => raidChip(ch, r))));
   else card.append(el("p", { className: "empty", textContent: "No eligible raids at this item level." }));
   updateProgress(ch);
 

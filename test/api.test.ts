@@ -200,7 +200,7 @@ describe("history", () => {
     const history = (await (await api(`/api/t/${token}/history`)).json()) as {
       weeks: { weekStart: string; characters: { name: string; clears: string[] }[] }[];
     };
-    expect(history.weeks).toEqual([{ weekStart: previous, characters: [{ id: ch.id, name: "Iochi", clears: [key], weeklyGold: expect.any(Number) }] }]);
+    expect(history.weeks).toEqual([{ weekStart: previous, characters: [{ id: ch.id, name: "Iochi", clears: [key], weeklyGold: expect.any(Number), weeklyBound: expect.any(Number) }] }]);
   });
 });
 

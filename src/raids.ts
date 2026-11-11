@@ -7,6 +7,8 @@ export interface RaidEntry {
   minIlvl: number;
   /** Total gold (tradable + bound) for clearing; undefined when not yet published. */
   gold?: number;
+  /** Part of `gold` that is character-bound (the rest is tradable roster gold). Defaults to 0. */
+  bound?: number;
 }
 
 export interface Eligibility {
@@ -17,22 +19,23 @@ export interface Eligibility {
   label: string;
   minIlvl: number;
   gold: number | null;
+  bound: number;
 }
 
 // Current endgame content only (Tier 4). Values from Maxroll (Armoche, Kazeros, Serca,
 // Horizon Cathedral) and Smilegate/Inven (Belgardin). Verify after game patches and update here.
 export const RAIDS: RaidEntry[] = [
-  { raid: "armoche", name: "Armoche", difficulty: "normal", minIlvl: 1700, gold: 27000 },
+  { raid: "armoche", name: "Armoche", difficulty: "normal", minIlvl: 1700, gold: 27000, bound: 13500 },
   { raid: "armoche", name: "Armoche", difficulty: "hard", minIlvl: 1720, gold: 38000 },
-  { raid: "kazeros", name: "Kazeros", difficulty: "normal", minIlvl: 1710, gold: 32000 },
+  { raid: "kazeros", name: "Kazeros", difficulty: "normal", minIlvl: 1710, gold: 32000, bound: 16000 },
   { raid: "kazeros", name: "Kazeros", difficulty: "hard", minIlvl: 1730, gold: 48000 },
-  { raid: "serca", name: "Serca", difficulty: "normal", minIlvl: 1710, gold: 32000 },
+  { raid: "serca", name: "Serca", difficulty: "normal", minIlvl: 1710, gold: 32000, bound: 16000 },
   { raid: "serca", name: "Serca", difficulty: "hard", minIlvl: 1730, gold: 44000 },
   { raid: "serca", name: "Serca", difficulty: "nightmare", minIlvl: 1740, gold: 54000 },
-  { raid: "horizon-cathedral", name: "Horizon Cathedral", difficulty: "stage-1", minIlvl: 1700, gold: 30000 },
-  { raid: "horizon-cathedral", name: "Horizon Cathedral", difficulty: "stage-2", minIlvl: 1720, gold: 40000 },
-  { raid: "horizon-cathedral", name: "Horizon Cathedral", difficulty: "stage-3", minIlvl: 1750, gold: 50000 },
-  { raid: "belgardin", name: "Belgardin", difficulty: "normal", minIlvl: 1750, gold: 50000 },
+  { raid: "horizon-cathedral", name: "Horizon Cathedral", difficulty: "stage-1", minIlvl: 1700, gold: 30000, bound: 30000 },
+  { raid: "horizon-cathedral", name: "Horizon Cathedral", difficulty: "stage-2", minIlvl: 1720, gold: 40000, bound: 40000 },
+  { raid: "horizon-cathedral", name: "Horizon Cathedral", difficulty: "stage-3", minIlvl: 1750, gold: 50000, bound: 50000 },
+  { raid: "belgardin", name: "Belgardin", difficulty: "normal", minIlvl: 1750, gold: 50000, bound: 25000 },
   { raid: "belgardin", name: "Belgardin", difficulty: "hard", minIlvl: 1770, gold: 62000 },
   { raid: "belgardin", name: "Belgardin", difficulty: "nightmare", minIlvl: 1780, gold: 75000 },
 ];
@@ -79,6 +82,7 @@ export function eligibleRaids(ilvl: number, table: RaidEntry[] = RAIDS, prefs: R
       label: LABELS[e.difficulty],
       minIlvl: e.minIlvl,
       gold: e.gold ?? null,
+      bound: e.bound ?? 0,
       options: entries.map((x) => ({ difficulty: x.difficulty, label: LABELS[x.difficulty] })),
     };
   });
@@ -98,4 +102,14 @@ export function weeklyGold(keys: string[], table: RaidEntry[] = RAIDS): number {
     .sort((a, b) => b - a)
     .slice(0, GOLD_RAIDS_PER_CHARACTER)
     .reduce((sum, g) => sum + g, 0);
+}
+
+/** Character-bound part of the gold a character earns: same top-paying raids as `weeklyGold`. */
+export function weeklyBoundGold(keys: string[], table: RaidEntry[] = RAIDS): number {
+  return keys
+    .map((k) => table.find((e) => raidKey(e.raid, e.difficulty) === k))
+    .filter((e): e is RaidEntry => !!e)
+    .sort((a, b) => (b.gold ?? 0) - (a.gold ?? 0))
+    .slice(0, GOLD_RAIDS_PER_CHARACTER)
+    .reduce((sum, e) => sum + (e.bound ?? 0), 0);
 }
