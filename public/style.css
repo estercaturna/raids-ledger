@@ -103,7 +103,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .raid select.diff { padding: .15rem .4rem; font-size: .75rem; border-radius: 999px; }
 .raid select.diff.hard { color: #fbbf24; }
 .raid select.diff.nightmare { color: #f87171; }
-.classimg { width: 100%; height: 100%; object-fit: contain; display: block; }
+.avatar > span { width: 100%; height: 100%; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; overflow: hidden; }
+.classimg { max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; display: block; }
 
 .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; max-width: 720px; padding-bottom: 6vh; }
 .hero .logo { filter: drop-shadow(0 8px 24px rgba(124, 58, 237, .5)); margin-bottom: .75rem; }
