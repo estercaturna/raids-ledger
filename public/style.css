@@ -49,7 +49,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .invalid { border-color: var(--danger); }
 
 .panel { background: var(--card); border: 1px solid var(--border); border-radius: 1rem; padding: 1.25rem; backdrop-filter: blur(6px); }
-.row { display: grid; grid-template-columns: 1.4fr 1.4fr 1fr 1fr auto; gap: .5rem; margin-bottom: .6rem; }
+.row { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr 1.3fr auto; gap: .5rem; margin-bottom: .6rem; }
 .actions { display: flex; gap: .6rem; margin-top: 1rem; flex-wrap: wrap; }
 @media (max-width: 640px) { .row { grid-template-columns: 1fr 1fr; } }
 
@@ -61,7 +61,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .toolbar .spacer { flex: 1; }
 .weekpill { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); }
 .weekpill select { padding: .45rem .7rem; }
-.addform { display: grid; grid-template-columns: 1.4fr 1.4fr 1fr 1fr auto; gap: .5rem; margin-bottom: 1.25rem; }
+.addform { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr 1.3fr auto; gap: .5rem; margin-bottom: 1.25rem; }
 @media (max-width: 640px) { .addform { grid-template-columns: 1fr 1fr; } }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
@@ -114,7 +114,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .brand { display: inline-flex; align-items: center; gap: .6rem; color: inherit; text-decoration: none; }
 .brand h1 { font-size: 1.5rem; }
 .row:only-child .remove { display: none; }
-.row:only-child { grid-template-columns: 1.4fr 1.4fr 1fr 1fr; }
+.row:only-child { grid-template-columns: 1.2fr 1.2fr 1fr 1.3fr; }
 .grip { cursor: grab; color: var(--muted); font-size: 1.2rem; line-height: 1; user-select: none; padding: .2rem .1rem; }
 .grip:hover { color: var(--text); }
 .card.dragging { opacity: .45; border-color: var(--accent); }
