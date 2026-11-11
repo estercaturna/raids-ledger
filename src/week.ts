@@ -21,6 +21,11 @@ export function weekStartIso(now: Date, resetHourUtc = 10): string {
 
 const WEEK_MS = 7 * DAY_MS;
 
+/** The reset instant that ends the game week starting at `weekStartIso`. */
+export function nextResetIso(weekStartIso: string): string {
+  return new Date(Date.parse(weekStartIso) + WEEK_MS).toISOString();
+}
+
 /** Alternates between two names by week parity relative to an anchor week; stateless. */
 export function rotationName(weekStartIso: string, anchorWeekIso: string, anchorName: string, otherName: string): string {
   const weeks = Math.round((Date.parse(weekStartIso) - Date.parse(anchorWeekIso)) / WEEK_MS);

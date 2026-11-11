@@ -20,6 +20,24 @@ beforeEach(async () => {
   await env.DB.batch([env.DB.prepare("DELETE FROM clear"), env.DB.prepare("DELETE FROM character"), env.DB.prepare("DELETE FROM tracker")]);
 });
 
+describe("security headers", () => {
+  it("sets browser security headers on responses", async () => {
+    const res = await api("/api/meta");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    expect(res.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(res.headers.get("content-security-policy")).toContain("default-src 'self'");
+  });
+});
+
+describe("reset countdown", () => {
+  it("returns the next reset a week after the current week start", async () => {
+    const token = await createTracker();
+    const body = (await (await api(`/api/t/${token}`)).json()) as { weekStart: string; nextReset: string };
+    expect(Date.parse(body.nextReset) - Date.parse(body.weekStart)).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+});
+
 describe("tracker creation", () => {
   it("creates a tracker, returns a secret token and stores only its hash", async () => {
     const token = await createTracker();

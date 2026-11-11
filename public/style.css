@@ -142,3 +142,5 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .raid .name { line-height: 1.25; margin-right: .25rem; }
 .raid .gold { min-width: 3.8rem; }
 .roster .stat { display: flex; flex-direction: column; }
+.countdown { margin: 0 0 .9rem; font-size: .9rem; font-weight: 600; color: var(--muted, #a99bd1); }
+.countdown[hidden] { display: none; }

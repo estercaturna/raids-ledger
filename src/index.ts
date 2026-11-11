@@ -3,7 +3,7 @@ import { CLASS_GROUPS } from "./classes";
 import { eligibleRaids, GOLD_RAIDS_PER_CHARACTER, RAIDS, weeklyBoundGold, weeklyGold, type RaidPrefs } from "./raids";
 import { generateToken, hashToken } from "./token";
 import { validateCharacter, validateRoster, type CharacterInput } from "./validation";
-import { rotationName, weekStartIso } from "./week";
+import { nextResetIso, rotationName, weekStartIso } from "./week";
 
 type Vars = { trackerId: string; rotationEnabled: boolean };
 type App = { Bindings: Cloudflare.Env; Variables: Vars };
@@ -27,10 +27,16 @@ function weekRotation(env: Cloudflare.Env, week: string) {
   return anchor && a && b ? rotationName(week, anchor, a, b) : undefined;
 }
 
+// Keep in sync with public/_headers (static assets bypass the Worker).
+const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+
 app.use("*", async (c, next) => {
   await next();
   c.header("Cache-Control", "no-store");
   c.header("Referrer-Policy", "no-referrer");
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Content-Security-Policy", CSP);
 });
 
 function insertCharacter(db: D1Database, trackerId: string, ch: CharacterInput) {
@@ -120,6 +126,7 @@ app.get("/api/t/:token", async (c) => {
   const rotation = c.get("rotationEnabled") ? weekRotation(c.env, week) : undefined;
   return c.json({
     weekStart: week,
+    nextReset: nextResetIso(week),
     ...(rotation && { rotation: { name: rotation } }),
     characters: characters.map((ch) => {
       const raids = eligibleRaids(ch.ilvl, RAIDS, prefs.get(ch.id)).map((r) => ({ ...r, cleared: cleared.has(`${ch.id}:${r.key}`) }));

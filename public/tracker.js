@@ -280,9 +280,31 @@ function historyCard(week, ch) {
   );
 }
 
+function fmtCountdown(ms) {
+  const secs = Math.max(0, Math.floor(ms / 1000));
+  return `Reset in ${Math.floor(secs / 86400)}d ${Math.floor((secs % 86400) / 3600)}h ${Math.floor((secs % 3600) / 60)}m ${secs % 60}s`;
+}
+
+function tickCountdown() {
+  const box = $("countdown");
+  box.hidden = viewWeek !== "current" || !state?.nextReset;
+  if (box.hidden) return;
+  const left = Date.parse(state.nextReset) - Date.now();
+  if (left <= 0) {
+    if (!tickCountdown.refreshing) {
+      tickCountdown.refreshing = true;
+      refresh().finally(() => (tickCountdown.refreshing = false));
+    }
+    return;
+  }
+  box.textContent = fmtCountdown(left);
+}
+setInterval(tickCountdown, 1000);
+
 function render() {
   progressEls.clear();
   renderWeeks();
+  tickCountdown();
   const root = $("characters");
   if (viewWeek === "current") {
     const tiers = highlightTiers(state.characters);

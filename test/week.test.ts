@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rotationName, weekStartIso } from "../src/week";
+import { nextResetIso, rotationName, weekStartIso } from "../src/week";
 
 // 2026-11-11 is a Wednesday
 describe("weekStartIso", () => {
@@ -38,5 +38,11 @@ describe("rotationName", () => {
   it("keeps alternating before the anchor", () => {
     expect(name("2026-11-04T10:00:00.000Z")).toBe("Skyfire");
     expect(name("2026-10-28T10:00:00.000Z")).toBe("Phirk");
+  });
+});
+
+describe("nextResetIso", () => {
+  it("is seven days after the week start", () => {
+    expect(nextResetIso("2026-11-11T10:00:00.000Z")).toBe("2026-11-18T10:00:00.000Z");
   });
 });
