@@ -203,3 +203,56 @@ describe("history", () => {
     expect(history.weeks).toEqual([{ weekStart: previous, characters: [{ id: ch.id, name: "Iochi", clears: [key], weeklyGold: expect.any(Number) }] }]);
   });
 });
+
+describe("week rotation label", () => {
+  const hashOf = async (token: string) => {
+    const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+    return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  };
+  const rotation = async (token: string) => ((await (await api(`/api/t/${token}`)).json()) as { rotation?: { name: string } }).rotation;
+
+  it("shows the rotation only to the configured token", async () => {
+    const owner = await createTracker();
+    const other = await createTracker([{ name: "Other", class: "Bard", ilvl: 1700 }]);
+    const saved = env.WEEK_ROTATION_TOKEN_HASH;
+    env.WEEK_ROTATION_TOKEN_HASH = await hashOf(owner);
+    try {
+      expect((await rotation(owner))?.name).toMatch(/^(Phirk|Skyfire)$/);
+      expect(await rotation(other)).toBeUndefined();
+    } finally {
+      env.WEEK_ROTATION_TOKEN_HASH = saved;
+    }
+  });
+
+  it("shows nothing when rotation is not configured", async () => {
+    const owner = await createTracker();
+    const saved = { ...env };
+    env.WEEK_ROTATION_TOKEN_HASH = await hashOf(owner);
+    env.ROTATION_ANCHOR_NAME = "";
+    try {
+      expect(await rotation(owner)).toBeUndefined();
+    } finally {
+      env.WEEK_ROTATION_TOKEN_HASH = saved.WEEK_ROTATION_TOKEN_HASH;
+      env.ROTATION_ANCHOR_NAME = saved.ROTATION_ANCHOR_NAME;
+    }
+  });
+});
+
+describe("combat power", () => {
+  const chars = async (token: string) => ((await (await api(`/api/t/${token}`)).json()) as { characters: { id: number; cp: number | null }[] }).characters;
+
+  it("stores CP when given, allows none, and lets edits set and clear it", async () => {
+    const token = await createTracker([
+      { name: "A", class: "Bard", ilvl: 1700, cp: 6772 } as never,
+      { name: "B", class: "Bard", ilvl: 1690 },
+    ]);
+    const [a, b] = await chars(token);
+    expect([a.cp, b.cp]).toEqual([6772, null]);
+
+    expect((await api(`/api/t/${token}/characters/${b.id}`, json("PATCH", { cp: 5000 }))).status).toBe(200);
+    expect((await chars(token))[1].cp).toBe(5000);
+    expect((await api(`/api/t/${token}/characters/${b.id}`, json("PATCH", { cp: null }))).status).toBe(200);
+    expect((await chars(token))[1].cp).toBeNull();
+    expect((await api(`/api/t/${token}/characters/${b.id}`, json("PATCH", { cp: -3 }))).status).toBe(400);
+  });
+});

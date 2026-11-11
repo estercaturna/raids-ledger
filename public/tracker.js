@@ -54,8 +54,12 @@ const prettyKey = (key) => key.replace(/-/g, " ").replace(/\b\w/g, (m) => m.toUp
 
 function renderWeeks() {
   const select = $("week");
-  select.replaceChildren(new Option(`Current week (${fmtWeek(state.weekStart)})`, "current"));
-  for (const w of history) select.append(new Option(`Week of ${fmtWeek(w.weekStart)}`, w.weekStart));
+  const who = state.rotation?.name;
+  select.replaceChildren(new Option(`Current week (${fmtWeek(state.weekStart)})${who ? ` · ${who}` : ""}`, "current"));
+  for (const w of history) select.append(new Option(`Week of ${fmtWeek(w.weekStart)}${w.rotationName ? ` · ${w.rotationName}` : ""}`, w.weekStart));
+  const label = $("rotation");
+  label.hidden = !who;
+  if (who) label.replaceChildren("Current week: ", el("span", { className: "rotation-name", textContent: who }));
   select.value = viewWeek;
   const past = viewWeek !== "current";
   $("markall").hidden = past;
@@ -124,8 +128,18 @@ function updateProgress(ch) {
     r.input.disabled = !r.cleared && done >= MAX_RAIDS;
     syncRaidState(r);
   }
-  p.gold.textContent = `${fmtGold(topGold(ch.raids.filter((r) => r.cleared).map((r) => r.gold ?? 0)))} this week`;
+  ch.weekGold = topGold(ch.raids.filter((r) => r.cleared).map((r) => r.gold ?? 0));
+  p.gold.textContent = `${fmtGold(ch.weekGold)} this week`;
   p.bar.style.width = max ? `${(done / max) * 100}%` : "0";
+  updateRoster();
+}
+
+function updateRoster() {
+  const week = viewWeek === "current"
+    ? state.characters.reduce((s, c) => s + (c.weekGold ?? 0), 0)
+    : (history.find((h) => h.weekStart === viewWeek)?.characters ?? []).reduce((s, c) => s + c.weeklyGold, 0);
+  $("roster").replaceChildren(el("small", { textContent: "Roster total" }), el("strong", { textContent: fmtGold(week) }));
+  $("roster").hidden = false;
 }
 
 function editForm(ch, card) {
@@ -133,16 +147,17 @@ function editForm(ch, card) {
   const cls = classSelect(groups);
   cls.value = ch.class;
   const ilvl = el("input", { name: "ilvl", type: "number", step: "any", min: 1, value: ch.ilvl });
+  const cp = el("input", { name: "cp", type: "number", step: 1, min: 1, placeholder: "CP (optional)", value: ch.cp ?? "" });
   const save = el("button", { type: "submit", className: "primary", textContent: "Save" });
   const cancel = el("button", { type: "button", textContent: "Cancel" });
-  const form = el("form", { className: "addform" }, name, cls, ilvl, save);
+  const form = el("form", { className: "addform" }, name, cls, ilvl, cp, save);
   form.style.gridTemplateColumns = "1fr 1fr";
   form.append(cancel);
   cancel.addEventListener("click", () => render());
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
-      await send(`/characters/${ch.id}`, "PATCH", { name: name.value, class: cls.value, ilvl: ilvl.valueAsNumber });
+      await send(`/characters/${ch.id}`, "PATCH", { name: name.value, class: cls.value, ilvl: ilvl.valueAsNumber, cp: cp.valueAsNumber || null });
       await refresh();
     } catch (err) {
       showError(err.message);
@@ -151,8 +166,22 @@ function editForm(ch, card) {
   card.replaceChildren(form);
 }
 
-function characterCard(ch) {
+const SUPPORT_CLASSES = new Set(["Bard", "Paladin", "Artist"]);
+const HIGHLIGHT_COUNT = 2; // strong characters after the MVP
+
+// Ranks by CP desc (missing CP last), then ilvl desc; the sort is stable, so ties keep roster order.
+function highlightTiers(characters) {
+  const ranked = [...characters].sort((a, b) => (b.cp ?? -1) - (a.cp ?? -1) || b.ilvl - a.ilvl);
+  return {
+    mvp: ranked[0]?.id,
+    strong: new Set(ranked.slice(1, 1 + HIGHLIGHT_COUNT).map((c) => c.id)),
+  };
+}
+
+function characterCard(ch, tiers) {
   const card = el("article", { className: "card" });
+  if (ch.id === tiers.mvp) card.classList.add("card--mvp");
+  else if (tiers.strong.has(ch.id)) card.classList.add("card--strong");
   card.dataset.id = ch.id;
   const grip = el("span", { className: "grip", textContent: "⠿", title: "Drag to reorder" });
   // Only draggable from the handle so selects and checkboxes keep working.
@@ -174,7 +203,7 @@ function characterCard(ch) {
   progressEls.set(ch.id, { text, bar, gold });
   card.append(
     el("header", {},
-      el("div", { className: "who" }, grip, avatar, el("div", {}, el("h2", { textContent: ch.name }), el("small", {}, `${ch.class} · `, el("span", { className: "ilvl", textContent: ch.ilvl })))),
+      el("div", { className: "who" }, grip, avatar, el("div", {}, el("h2", { textContent: ch.name }), el("small", {}, `${ch.class} · `, el("span", { className: "ilvl", textContent: ch.ilvl })), ch.cp ? el("small", { className: `cp ${SUPPORT_CLASSES.has(ch.class) ? "cp--support" : "cp--dps"}`, textContent: `CP · ${ch.cp.toLocaleString("en-US")}` }) : "")),
       el("span", { className: "progress" }, text),
     ),
     el("div", { className: "bar" }, bar),
@@ -247,11 +276,14 @@ function render() {
   renderWeeks();
   const root = $("characters");
   if (viewWeek === "current") {
-    root.replaceChildren(...(state.characters.length ? state.characters.map(characterCard) : [el("p", { className: "empty", textContent: "No characters yet. Add one above." })]));
+    const tiers = highlightTiers(state.characters);
+    root.replaceChildren(...(state.characters.length ? state.characters.map((ch) => characterCard(ch, tiers)) : [el("p", { className: "empty", textContent: "No characters yet. Add one above." })]));
+    updateRoster();
     return;
   }
   const w = history.find((h) => h.weekStart === viewWeek);
   root.replaceChildren(...(w ? w.characters.map((ch) => historyCard(w, ch)) : [el("p", { className: "empty", textContent: "No clears recorded that week." })]));
+  updateRoster();
 }
 
 async function refresh() {
@@ -268,7 +300,7 @@ $("addform").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.currentTarget;
   try {
-    await send("/characters", "POST", { name: f.elements.name.value, class: f.elements.class.value, ilvl: f.elements.ilvl.valueAsNumber });
+    await send("/characters", "POST", { name: f.elements.name.value, class: f.elements.class.value, ilvl: f.elements.ilvl.valueAsNumber, cp: f.elements.cp.valueAsNumber || null });
     f.reset();
     f.hidden = true;
     await refresh();

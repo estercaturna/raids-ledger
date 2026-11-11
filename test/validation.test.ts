@@ -7,6 +7,7 @@ describe("validateCharacter", () => {
       name: "Iochi",
       class: "Bard",
       ilvl: 1620.83,
+      cp: null,
     });
   });
 
@@ -21,6 +22,19 @@ describe("validateCharacter", () => {
 
   it.each([0, -5, 3001, NaN, "1600"])("rejects ilvl %s", (ilvl) => {
     expect(validateCharacter({ name: "A", class: "Bard", ilvl }).errors?.ilvl).toBeDefined();
+  });
+});
+
+describe("combat power", () => {
+  const ok = (cp: unknown) => validateCharacter({ name: "A", class: "Bard", ilvl: 1700, cp });
+
+  it("accepts a whole-number CP and treats missing, null, or empty as none", () => {
+    expect(ok(6772).value?.cp).toBe(6772);
+    for (const empty of [undefined, null, ""]) expect(ok(empty).value?.cp).toBeNull();
+  });
+
+  it.each([0, -1, 12.5, 100_000_001, "abc"])("rejects CP %s", (cp) => {
+    expect(ok(cp).errors?.cp).toBeDefined();
   });
 });
 

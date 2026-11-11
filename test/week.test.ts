@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { weekStartIso } from "../src/week";
+import { rotationName, weekStartIso } from "../src/week";
 
 // 2026-11-11 is a Wednesday
 describe("weekStartIso", () => {
@@ -22,5 +22,21 @@ describe("weekStartIso", () => {
 
   it("crosses month boundaries", () => {
     expect(weekStartIso(new Date("2026-12-01T12:00:00Z"))).toBe("2026-11-25T10:00:00.000Z");
+  });
+});
+
+describe("rotationName", () => {
+  const anchor = "2026-11-11T10:00:00.000Z";
+  const name = (week: string) => rotationName(week, anchor, "Phirk", "Skyfire");
+
+  it("is the anchor name on the anchor week and alternates weekly", () => {
+    expect(name("2026-11-11T10:00:00.000Z")).toBe("Phirk");
+    expect(name("2026-11-18T10:00:00.000Z")).toBe("Skyfire");
+    expect(name("2026-11-25T10:00:00.000Z")).toBe("Phirk");
+  });
+
+  it("keeps alternating before the anchor", () => {
+    expect(name("2026-11-04T10:00:00.000Z")).toBe("Skyfire");
+    expect(name("2026-10-28T10:00:00.000Z")).toBe("Phirk");
   });
 });

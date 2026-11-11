@@ -18,16 +18,19 @@
       <div class="linkrow"><input id="link" readonly> <button type="button" id="copy">Copy</button></div>
     </div>
     <p id="error" class="error" role="alert"></p>
+    <p id="rotation" class="rotation" hidden></p>
     <section class="toolbar">
       <label class="weekpill">Week <select id="week"></select></label>
       <span class="spacer"></span>
       <button type="button" id="markall">Mark all (everyone)</button>
       <button type="button" id="addtoggle" class="primary">+ Add character</button>
     </section>
+    <div id="roster" class="roster" hidden></div>
     <form id="addform" class="addform" hidden>
       <input name="name" placeholder="Character name" maxlength="32" required>
       <span id="addclass"></span>
       <input name="ilvl" type="number" step="any" min="1" placeholder="Item level" required>
+      <input name="cp" type="number" step="1" min="1" placeholder="CP (optional)">
       <button type="submit" class="primary">Add</button>
     </form>
     <div id="characters" class="grid"></div>

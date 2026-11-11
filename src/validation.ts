@@ -4,12 +4,14 @@ export interface CharacterInput {
   name: string;
   class: string;
   ilvl: number;
+  cp: number | null;
 }
 
 export type FieldErrors = Record<string, string>;
 
 export const MAX_CHARACTERS = 50;
 export const MAX_ILVL = 3000;
+export const MAX_CP = 100_000_000;
 
 export function validateCharacter(input: unknown): { value?: CharacterInput; errors?: FieldErrors } {
   const errors: FieldErrors = {};
@@ -24,8 +26,14 @@ export function validateCharacter(input: unknown): { value?: CharacterInput; err
   else if (!CLASSES.includes(cls)) errors.class = "Unknown class";
   if (!Number.isFinite(ilvl) || ilvl <= 0 || ilvl > MAX_ILVL) errors.ilvl = "ilvl must be a number between 1 and 3000";
 
+  let cp: number | null = null;
+  if (raw.cp !== undefined && raw.cp !== null && raw.cp !== "") {
+    if (typeof raw.cp === "number" && Number.isInteger(raw.cp) && raw.cp > 0 && raw.cp <= MAX_CP) cp = raw.cp;
+    else errors.cp = `CP must be a whole number between 1 and ${MAX_CP.toLocaleString("en-US")}`;
+  }
+
   if (Object.keys(errors).length) return { errors };
-  return { value: { name, class: cls, ilvl } };
+  return { value: { name, class: cls, ilvl, cp } };
 }
 
 /** Validates a full roster, including case-insensitive unique names. Errors are keyed `characters.<index>.<field>`. */

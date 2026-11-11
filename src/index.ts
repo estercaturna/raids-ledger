@@ -3,9 +3,9 @@ import { CLASS_GROUPS } from "./classes";
 import { eligibleRaids, GOLD_RAIDS_PER_CHARACTER, RAIDS, weeklyGold, type RaidPrefs } from "./raids";
 import { generateToken, hashToken } from "./token";
 import { validateCharacter, validateRoster, type CharacterInput } from "./validation";
-import { weekStartIso } from "./week";
+import { rotationName, weekStartIso } from "./week";
 
-type Vars = { trackerId: string };
+type Vars = { trackerId: string; rotationEnabled: boolean };
 type App = { Bindings: Cloudflare.Env; Variables: Vars };
 
 interface CharacterRow {
@@ -13,12 +13,19 @@ interface CharacterRow {
   name: string;
   class: string;
   ilvl: number;
+  cp: number | null;
 }
 
 const app = new Hono<App>();
 
 const resetHour = (env: Cloudflare.Env) => Number(env.RESET_HOUR_UTC ?? 10);
 const currentWeek = (env: Cloudflare.Env) => weekStartIso(new Date(), resetHour(env));
+
+// Returns the rotation name for a week, or undefined unless every rotation var is configured.
+function weekRotation(env: Cloudflare.Env, week: string) {
+  const { ROTATION_ANCHOR_WEEK: anchor, ROTATION_ANCHOR_NAME: a, ROTATION_OTHER_NAME: b } = env;
+  return anchor && a && b ? rotationName(week, anchor, a, b) : undefined;
+}
 
 app.use("*", async (c, next) => {
   await next();
@@ -28,10 +35,10 @@ app.use("*", async (c, next) => {
 
 function insertCharacter(db: D1Database, trackerId: string, ch: CharacterInput) {
   return db
-    .prepare(`INSERT INTO character (tracker_id, name, class, ilvl, position)
-       VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(position) + 1, 0) FROM character WHERE tracker_id = ?))`,
+    .prepare(`INSERT INTO character (tracker_id, name, class, ilvl, cp, position)
+       VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position) + 1, 0) FROM character WHERE tracker_id = ?))`,
     )
-    .bind(trackerId, ch.name, ch.class, ch.ilvl, trackerId);
+    .bind(trackerId, ch.name, ch.class, ch.ilvl, ch.cp, trackerId);
 }
 
 const isUniqueViolation = (e: unknown) => String(e).includes("UNIQUE");
@@ -58,17 +65,19 @@ app.use("/api/t/:token", authenticate);
 
 async function authenticate(c: import("hono").Context<App>, next: () => Promise<void>) {
   const token = c.req.param("token") ?? "";
+  const tokenHash = await hashToken(token);
   const row = await c.env.DB.prepare("SELECT id FROM tracker WHERE token_hash = ?")
-    .bind(await hashToken(token))
+    .bind(tokenHash)
     .first<{ id: string }>();
   if (!row) return c.json({ error: "not_found" }, 404);
   c.set("trackerId", row.id);
+  c.set("rotationEnabled", !!c.env.WEEK_ROTATION_TOKEN_HASH && tokenHash === c.env.WEEK_ROTATION_TOKEN_HASH);
   await next();
 }
 
 async function loadCharacters(db: D1Database, trackerId: string) {
   const { results } = await db
-    .prepare("SELECT id, name, class, ilvl FROM character WHERE tracker_id = ? ORDER BY position, id")
+    .prepare("SELECT id, name, class, ilvl, cp FROM character WHERE tracker_id = ? ORDER BY position, id")
     .bind(trackerId)
     .all<CharacterRow>();
   return results;
@@ -89,7 +98,7 @@ async function loadPrefs(db: D1Database, trackerId: string) {
 
 async function findCharacter(db: D1Database, trackerId: string, id: number) {
   return db
-    .prepare("SELECT id, name, class, ilvl FROM character WHERE id = ? AND tracker_id = ?")
+    .prepare("SELECT id, name, class, ilvl, cp FROM character WHERE id = ? AND tracker_id = ?")
     .bind(id, trackerId)
     .first<CharacterRow>();
 }
@@ -108,8 +117,10 @@ app.get("/api/t/:token", async (c) => {
   const cleared = new Set(clears.map((r) => `${r.character_id}:${r.raid_key}`));
   const prefs = await loadPrefs(c.env.DB, trackerId);
 
+  const rotation = c.get("rotationEnabled") ? weekRotation(c.env, week) : undefined;
   return c.json({
     weekStart: week,
+    ...(rotation && { rotation: { name: rotation } }),
     characters: characters.map((ch) => {
       const raids = eligibleRaids(ch.ilvl, RAIDS, prefs.get(ch.id)).map((r) => ({ ...r, cleared: cleared.has(`${ch.id}:${r.key}`) }));
       return { ...ch, raids, weeklyGold: weeklyGold(raids.filter((r) => r.cleared).map((r) => r.key)) };
@@ -139,9 +150,9 @@ app.patch("/api/t/:token/characters/:id", async (c) => {
   if (!value) return c.json({ error: "invalid_input", fields: errors }, 400);
   try {
     await c.env.DB.prepare(
-      "UPDATE character SET name = ?, class = ?, ilvl = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
+      "UPDATE character SET name = ?, class = ?, ilvl = ?, cp = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?",
     )
-      .bind(value.name, value.class, value.ilvl, id)
+      .bind(value.name, value.class, value.ilvl, value.cp, id)
       .run();
   } catch (e) {
     if (isUniqueViolation(e)) return c.json({ error: "invalid_input", fields: { name: "Duplicate character name" } }, 409);
@@ -271,9 +282,11 @@ app.get("/api/t/:token/history", async (c) => {
     chars.set(r.character_id, entry);
     weeks.set(r.week_start, chars);
   }
+  const rotationOn = c.get("rotationEnabled");
   return c.json({
     weeks: [...weeks].map(([weekStart, chars]) => ({
       weekStart,
+      ...(rotationOn && { rotationName: weekRotation(c.env, weekStart) }),
       characters: [...chars.values()].map((ch) => ({ ...ch, weeklyGold: weeklyGold(ch.clears) })),
     })),
   });
