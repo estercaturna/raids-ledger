@@ -1,4 +1,4 @@
-import { classIcon, classSelect, loadClassGroups } from "/common.js";
+import { classColor, classIcon, classSelect, loadClassGroups } from "/common.js";
 
 const token = location.pathname.split("/")[2];
 const api = (path, opts = {}) =>
@@ -12,6 +12,25 @@ const groups = await loadClassGroups();
 let state = null;
 let history = [];
 let viewWeek = "current";
+
+const VIEW_KEY = `view:${token}`;
+const SORTS = ["roster", "ilvl", "cp"];
+function loadView() {
+  try {
+    const v = JSON.parse(localStorage.getItem(VIEW_KEY) ?? "{}");
+    return { sort: SORTS.includes(v.sort) ? v.sort : "roster", earnersOnly: v.earnersOnly === true };
+  } catch {
+    return { sort: "roster", earnersOnly: false };
+  }
+}
+const view = loadView();
+function saveView() {
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify(view));
+  } catch {
+    // Storage unavailable (private mode): preferences just won't persist.
+  }
+}
 
 function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
@@ -66,6 +85,7 @@ function renderWeeks() {
   const past = viewWeek !== "current";
   $("markall").hidden = past;
   $("addtoggle").hidden = past;
+  $("viewopts").hidden = past;
   if (past) $("addform").hidden = true;
 }
 
@@ -105,7 +125,7 @@ function raidChip(ch, raid) {
       showError(e.message);
     }
   });
-  const label = el("label", { className: "raid" }, input, el("span", { className: "check", textContent: "✓" }), el("span", { className: "name", textContent: raid.name }), difficultyControl(ch, raid), el("span", { className: "gold", textContent: raid.gold ? fmtGold(raid.gold) : "—", title: raid.gold ? "" : "Gold not published yet" }));
+  const label = el("label", { className: `raid d-${raid.difficulty}` }, input, el("span", { className: "check", textContent: "✓" }), el("span", { className: "name", textContent: raid.name }), difficultyControl(ch, raid), el("span", { className: "gold", textContent: raid.gold ? fmtGold(raid.gold) : "—", title: raid.gold ? "" : "Gold not published yet" }));
   raid.label = label;
   syncRaidState(raid);
   return el("li", {}, label);
@@ -191,13 +211,25 @@ const raidRank = (r) => { const i = RAID_ORDER.indexOf(r.raid); return i === -1 
 const SUPPORT_CLASSES = new Set(["Bard", "Paladin", "Artist"]);
 const HIGHLIGHT_COUNT = 2; // strong characters after the MVP
 
-// Ranks by CP desc (missing CP last), then ilvl desc; the sort is stable, so ties keep roster order.
+// Strength order: ilvl desc, then CP desc (missing CP last); the sort is stable, so ties keep roster order.
+const byStrength = (a, b) => b.ilvl - a.ilvl || (b.cp ?? -1) - (a.cp ?? -1);
 function highlightTiers(characters) {
-  const ranked = [...characters].sort((a, b) => (b.cp ?? -1) - (a.cp ?? -1) || b.ilvl - a.ilvl);
+  const ranked = [...characters].sort(byStrength);
   return {
     mvp: ranked[0]?.id,
     strong: new Set(ranked.slice(1, 1 + HIGHLIGHT_COUNT).map((c) => c.id)),
   };
+}
+
+// Display-only: filter then stable sort (ties keep roster order); never touches the stored order.
+function visibleCharacters(mvpId) {
+  let list = [...state.characters];
+  if (view.earnersOnly) list = list.filter((c) => c.goldEarner !== false);
+  if (view.sort === "ilvl") list.sort(byStrength);
+  else if (view.sort === "cp") list.sort((a, b) => (b.cp ?? -1) - (a.cp ?? -1) || b.ilvl - a.ilvl);
+  // The main (MVP) is always the first card, whatever the sort or stored order.
+  const main = list.find((c) => c.id === mvpId);
+  return main ? [main, ...list.filter((c) => c !== main)] : list;
 }
 
 function characterCard(ch, tiers) {
@@ -216,9 +248,12 @@ function characterCard(ch, tiers) {
   card.addEventListener("dragend", async () => {
     card.draggable = false;
     card.classList.remove("dragging");
-    await saveOrder();
+    await saveOrder(ch.id);
+    // Re-render so sort order and the pinned main card are restored.
+    render();
   });
   const avatar = el("div", { className: "avatar", title: ch.class }, classIcon(ch.class));
+  avatar.style.setProperty("--class-color", classColor(groups, ch.class));
   const text = el("span", { className: "text", textContent: "" });
   const bar = el("i");
   const gold = el("div", { className: "weekgold" });
@@ -260,9 +295,16 @@ function characterCard(ch, tiers) {
   return card;
 }
 
-async function saveOrder() {
-  const ids = [...$("characters").querySelectorAll(".card[data-id]")].map((n) => Number(n.dataset.id));
+// Moves only the dragged character in the full roster order, next to its visible neighbour,
+// so sorted/filtered views never rewrite the order of other (or hidden) characters.
+async function saveOrder(draggedId) {
+  const cards = [...$("characters").querySelectorAll(".card[data-id]")].map((n) => Number(n.dataset.id));
+  const at = cards.indexOf(draggedId);
   const previous = state.characters.map((c) => c.id);
+  const ids = previous.filter((id) => id !== draggedId);
+  if (at < cards.length - 1) ids.splice(ids.indexOf(cards[at + 1]), 0, draggedId);
+  else if (at > 0) ids.splice(ids.indexOf(cards[at - 1]) + 1, 0, draggedId);
+  else return;
   if (ids.join() === previous.join()) return;
   state.characters.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
   try {
@@ -328,7 +370,9 @@ function render() {
   const root = $("characters");
   if (viewWeek === "current") {
     const tiers = highlightTiers(state.characters);
-    root.replaceChildren(...(state.characters.length ? state.characters.map((ch) => characterCard(ch, tiers)) : [el("p", { className: "empty", textContent: "No characters yet. Add one above." })]));
+    const shown = visibleCharacters(tiers.mvp);
+    const emptyMsg = state.characters.length ? "No characters match the current filter." : "No characters yet. Add one above.";
+    root.replaceChildren(...(shown.length ? shown.map((ch) => characterCard(ch, tiers)) : [el("p", { className: "empty", textContent: emptyMsg })]));
     updateRoster();
     return;
   }
@@ -345,6 +389,10 @@ $("week").addEventListener("change", (e) => {
   viewWeek = e.target.value;
   render();
 });
+$("sort").value = view.sort;
+$("earners").checked = view.earnersOnly;
+$("sort").addEventListener("change", (e) => { view.sort = e.target.value; saveView(); render(); });
+$("earners").addEventListener("change", (e) => { view.earnersOnly = e.target.checked; saveView(); render(); });
 $("addtoggle").addEventListener("click", () => ($("addform").hidden = !$("addform").hidden));
 $("addclass").replaceWith(Object.assign(classSelect(groups), { id: "addclass" }));
 $("addform").addEventListener("submit", async (e) => {

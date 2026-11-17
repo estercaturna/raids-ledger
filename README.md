@@ -28,7 +28,8 @@ Tick clears, see your gold, never lose track of the week. No login, just a secre
 - **Gold tracking.** Gold per raid, and each character card shows weekly Character gold (character-bound) and Total gold (character plus roster), for the current and past weeks.
 - **6 gold earners.** Only the 6 characters with the highest item level earn gold (ties by combat power, then roster order); the others still track clears but count 0 gold. Changing a raid's difficulty drops the earlier clear of that raid this week.
 - **Weekly reset with history.** Clears reset every Wednesday and past weeks stay browsable.
-- **Drag to reorder** characters, with class icons and a dark, Lost Ark Nexus-inspired look.
+- **Drag to reorder** characters (also while sorted or filtered), with class icons and a dark, Lost Ark Nexus-inspired look.
+- **View options.** Sort by roster order, item level or combat power or show only gold earners. Preferences are remembered per browser and never change the stored order. Animations respect reduced-motion settings.
 
 <div align="center">
 <img src="docs/img/landing.png" alt="Raids Ledger landing page" width="700">

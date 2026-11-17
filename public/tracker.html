@@ -22,6 +22,16 @@
     <p id="countdown" class="countdown" hidden></p>
     <section class="toolbar">
       <label class="weekpill">Week <select id="week"></select></label>
+      <span class="viewopts" id="viewopts">
+        <label class="weekpill">Sort
+          <select id="sort">
+            <option value="roster">Roster order</option>
+            <option value="ilvl">Item level</option>
+            <option value="cp">Combat power</option>
+          </select>
+        </label>
+        <label class="toggle"><input type="checkbox" id="earners"> Gold earners only</label>
+      </span>
       <span class="spacer"></span>
       <button type="button" id="markall">Mark all (everyone)</button>
       <button type="button" id="addtoggle" class="primary">+ Add character</button>

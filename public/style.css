@@ -152,3 +152,100 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .roster .stat { display: flex; flex-direction: column; }
 .countdown { margin: 0 0 .9rem; font-size: .9rem; font-weight: 600; color: var(--muted, #a99bd1); }
 .countdown[hidden] { display: none; }
+.viewopts { display: inline-flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
+.viewopts[hidden] { display: none; }
+.toggle { display: inline-flex; align-items: center; gap: .35rem; color: var(--muted); cursor: pointer; }
+
+/* Visual polish: cards, raids, gold, main and strong highlights */
+:root { --gold: #fbbf24; }
+body {
+  background:
+    radial-gradient(70rem 30rem at 50% -12%, rgba(139, 92, 246, .30), transparent 65%),
+    radial-gradient(50rem 30rem at 105% 20%, rgba(244, 114, 182, .10), transparent 60%),
+    radial-gradient(40rem 30rem at -10% 110%, rgba(57, 26, 132, .40), transparent 60%),
+    radial-gradient(rgba(255, 255, 255, .05) 1px, transparent 1px) 0 0 / 28px 28px,
+    var(--bg);
+  background-attachment: fixed;
+}
+
+.card {
+  position: relative;
+  border-radius: 1.25rem;
+  padding: 1.15rem 1.2rem;
+  background: linear-gradient(165deg, rgba(30, 27, 75, .55), rgba(15, 23, 42, .85) 45%);
+  border: 1px solid rgba(167, 139, 250, .18);
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, .7), inset 0 1px 0 rgba(255, 255, 255, .05);
+  transition: transform .18s, box-shadow .18s, border-color .18s;
+  animation: card-in .25s ease-out;
+}
+.card:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -14px rgba(124, 58, 237, .45), inset 0 1px 0 rgba(255, 255, 255, .06); border-color: rgba(167, 139, 250, .4); }
+@keyframes card-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.avatar { --ring: var(--class-color, #8b5cf6); border-radius: 50%; padding: 3px; background: conic-gradient(from 200deg, var(--ring), color-mix(in srgb, var(--ring) 55%, #fff), var(--ring)); box-shadow: 0 0 14px color-mix(in srgb, var(--ring) 55%, transparent); }
+.avatar > span { background: #0b1020; border-radius: 50%; padding: 3px; }
+.who h2 { font-size: 1.15rem; letter-spacing: -.01em; }
+.progress { padding: .2rem .6rem; border-radius: 999px; background: rgba(148, 163, 184, .12); font-weight: 600; }
+.bar { height: .45rem; background: rgba(148, 163, 184, .14); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .4); }
+.bar > i { background: linear-gradient(90deg, #7c3aed, #a78bfa 55%, #34d399); box-shadow: 0 0 10px rgba(167, 139, 250, .7); }
+
+/* Strong (2nd and 3rd): outline plus a light running around it */
+.card--strong, .card--strong:hover { border-color: #f472b6; }
+.card--strong { box-shadow: 0 0 0 2px #c084fc, 0 0 20px rgba(244, 114, 182, .4), 0 10px 30px -12px rgba(0, 0, 0, .7); }
+.card--strong:hover { box-shadow: 0 0 0 2px #c084fc, 0 0 28px rgba(244, 114, 182, .55), 0 18px 40px -14px rgba(124, 58, 237, .45); }
+@property --angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.card--strong::after {
+  content: ""; position: absolute; inset: -2px; padding: 2px; border-radius: calc(1.25rem + 2px); pointer-events: none;
+  background: conic-gradient(from var(--angle), transparent 0 62%, rgba(192, 132, 252, .9) 80%, #f9a8d4 92%, #fff 97%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  filter: drop-shadow(0 0 6px rgba(244, 114, 182, .8)); animation: strong-run 4s linear infinite;
+}
+@keyframes strong-run { to { --angle: 360deg; } }
+
+/* Main: gold frame (also on hover), badge on the outline line, shine kept inside the card */
+.card--mvp, .card--mvp:hover { border-color: var(--gold); }
+.card--mvp { box-shadow: 0 0 0 2px rgba(251, 191, 36, .9), 0 0 34px rgba(251, 191, 36, .35), inset 0 0 40px rgba(251, 191, 36, .08); background: linear-gradient(160deg, rgba(120, 77, 8, .35), rgba(15, 23, 42, .9) 55%); }
+.card--mvp:hover { box-shadow: 0 0 0 2px rgba(251, 191, 36, .9), 0 0 44px rgba(251, 191, 36, .5), inset 0 0 40px rgba(251, 191, 36, .1); }
+.card--mvp::before { z-index: 2; padding-left: 1.55rem; background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath fill=%22%23422006%22 d=%22M3 7l4.5 4L12 4l4.5 7L21 7l-2 11H5L3 7zm2 13h14v2H5z%22/%3E%3C/svg%3E") no-repeat .5rem 50% / .8rem .8rem, linear-gradient(90deg, #fde68a, #f59e0b); }
+.card--mvp::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(115deg, transparent 40%, rgba(255, 236, 170, .14) 50%, transparent 60%) 200% 0 / 300% 100% no-repeat; animation: shine 5s ease-in-out infinite; }
+.card--mvp .avatar { box-shadow: 0 0 18px rgba(251, 191, 36, .7); }
+@keyframes shine { 0%, 60% { background-position: 200% 0; } 100% { background-position: -100% 0; } }
+
+/* Raids: difficulty accent, round check */
+.raid { border-radius: .8rem; padding: .6rem .8rem .6rem 1rem; border: 1px solid rgba(148, 163, 184, .14); background: rgba(15, 23, 42, .55); overflow: hidden; }
+.raid::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--dc, #64748b); opacity: .9; }
+.raid.d-normal { --dc: #60a5fa; }
+.raid.d-hard { --dc: #fbbf24; }
+.raid.d-nightmare { --dc: #f87171; }
+.raid.d-matching { --dc: #38bdf8; }
+.raid.d-stage-2 { --dc: #fbbf24; }
+.raid.d-stage-3 { --dc: #f87171; }
+.raid:hover { background: rgba(30, 41, 59, .75); border-color: rgba(167, 139, 250, .5); }
+.raid.locked:hover { background: rgba(30, 41, 59, .25); border-color: rgba(51, 65, 85, .5); }
+.raid .check { border-radius: 50%; transition: background .2s, transform .2s, border-color .2s; }
+.raid.done { background: linear-gradient(90deg, rgba(52, 211, 153, .16), rgba(52, 211, 153, .05)); border-color: rgba(52, 211, 153, .45); }
+.raid.done .check { transform: scale(1.1); box-shadow: 0 0 10px rgba(52, 211, 153, .6); }
+.raid.done .name { color: #d1fae5; }
+
+/* Gold: coin marker, larger values, Total highlighted */
+.weekgold { gap: .6rem; }
+.goldrow { border-radius: .9rem; padding: .6rem .85rem; background: rgba(15, 23, 42, .6); }
+.goldrow strong { font-size: 1.2rem; display: flex; align-items: center; gap: .4rem; }
+.goldrow strong::before { content: ""; width: .95rem; height: .95rem; border-radius: 50%; flex: none; background: radial-gradient(circle at 35% 30%, #fde68a, #f59e0b 60%, #b45309); box-shadow: 0 0 8px rgba(251, 191, 36, .6), inset 0 0 0 1.5px rgba(120, 53, 15, .5); }
+.goldrow:nth-child(2) { background: linear-gradient(135deg, rgba(251, 191, 36, .18), rgba(251, 191, 36, .04)); border-color: rgba(251, 191, 36, .5); box-shadow: 0 0 18px rgba(251, 191, 36, .15); }
+.goldrow:nth-child(2) strong { font-size: 1.35rem; color: #fde68a; text-shadow: 0 0 14px rgba(251, 191, 36, .5); }
+.weekgold.nogold .goldrow strong::before { filter: grayscale(1); opacity: .5; }
+.weekgold.nogold .goldrow:nth-child(2) { background: rgba(15, 23, 42, .6); border-color: var(--border); box-shadow: none; }
+.weekgold.nogold .goldrow:nth-child(2) strong { color: var(--muted); text-shadow: none; }
+.goldrow strong { transition: color .2s; }
+
+/* Roster totals: two separate gold-bordered tiles, no wrapping box */
+.roster { padding: 0; border: 0; background: none; gap: .8rem; width: auto; flex-wrap: wrap; }
+.roster .stat { background: rgba(15, 23, 42, .6); border: 1px solid rgba(251, 191, 36, .25); border-radius: .9rem; padding: .6rem 1rem; }
+.roster .stat strong { color: #fde68a; font-size: 1.25rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .bar > i, .raid, .raid .check, .goldrow strong { animation: none; transition: none; }
+  .card:hover { transform: none; }
+  .card--mvp::after, .card--strong::after { animation: none; }
+  .raid.done .check { transform: none; }
+}
