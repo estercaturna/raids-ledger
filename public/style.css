@@ -236,7 +236,8 @@ body {
 .weekgold.nogold .goldrow strong::before { filter: grayscale(1); opacity: .5; }
 .weekgold.nogold .goldrow:nth-child(2) { background: rgba(15, 23, 42, .6); border-color: var(--border); box-shadow: none; }
 .weekgold.nogold .goldrow:nth-child(2) strong { color: var(--muted); text-shadow: none; }
-.goldrow strong { transition: color .2s; }
+.goldrow strong { transition: color .2s; white-space: nowrap; }
+.goldrow:nth-child(2) strong { font-size: clamp(1rem, 4.5vw, 1.35rem); }
 
 /* Roster totals: two separate gold-bordered tiles, no wrapping box */
 .roster { padding: 0; border: 0; background: none; gap: .8rem; width: auto; flex-wrap: wrap; }
