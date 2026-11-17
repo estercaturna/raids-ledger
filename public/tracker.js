@@ -211,8 +211,9 @@ const raidRank = (r) => { const i = RAID_ORDER.indexOf(r.raid); return i === -1 
 const SUPPORT_CLASSES = new Set(["Bard", "Paladin", "Artist"]);
 const HIGHLIGHT_COUNT = 2; // strong characters after the MVP
 
-// Strength order: ilvl desc, then CP desc (missing CP last); the sort is stable, so ties keep roster order.
-const byStrength = (a, b) => b.ilvl - a.ilvl || (b.cp ?? -1) - (a.cp ?? -1);
+// Strength order: CP desc (missing CP last), then ilvl desc; the sort is stable, so ties keep roster order.
+const byStrength = (a, b) => (b.cp ?? -1) - (a.cp ?? -1) || b.ilvl - a.ilvl;
+const byIlvl = (a, b) => b.ilvl - a.ilvl || (b.cp ?? -1) - (a.cp ?? -1);
 function highlightTiers(characters) {
   const ranked = [...characters].sort(byStrength);
   return {
@@ -225,8 +226,8 @@ function highlightTiers(characters) {
 function visibleCharacters(mvpId) {
   let list = [...state.characters];
   if (view.earnersOnly) list = list.filter((c) => c.goldEarner !== false);
-  if (view.sort === "ilvl") list.sort(byStrength);
-  else if (view.sort === "cp") list.sort((a, b) => (b.cp ?? -1) - (a.cp ?? -1) || b.ilvl - a.ilvl);
+  if (view.sort === "ilvl") list.sort(byIlvl);
+  else if (view.sort === "cp") list.sort(byStrength);
   // The main (MVP) is always the first card, whatever the sort or stored order.
   const main = list.find((c) => c.id === mvpId);
   return main ? [main, ...list.filter((c) => c !== main)] : list;
