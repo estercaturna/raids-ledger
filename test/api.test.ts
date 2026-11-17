@@ -85,6 +85,12 @@ describe("secret link access", () => {
 type View = { weekStart: string; characters: { id: number; name: string; ilvl: number; raids: { key: string; cleared: boolean }[] }[] };
 const view = async (token: string) => (await (await api(`/api/t/${token}`)).json()) as View;
 
+async function storedClears(characterId: number, week: string) {
+  const { results } = await env.DB.prepare("SELECT raid_key FROM clear WHERE character_id = ? AND week_start = ? ORDER BY raid_key").bind(characterId, week).all<{ raid_key: string }>();
+  return results;
+}
+const rawClears = (rows: { raid_key: string }[]) => rows.map((r) => r.raid_key);
+
 describe("clears", () => {
   it("toggles a clear idempotently", async () => {
     const token = await createTracker();
@@ -177,6 +183,62 @@ describe("difficulty preference", () => {
   });
 });
 
+describe("difficulty change drops the old clear", () => {
+  it("removes this week's clear of the other difficulty only", async () => {
+    const token = await createTracker([{ name: "A", class: "Bard", ilvl: 1745 }]);
+    const ch = (await view(token)).characters[0];
+    const clear = (key: string) => api(`/api/t/${token}/clears`, json("PUT", { characterId: ch.id, raidKey: key, cleared: true }));
+    const pref = (difficulty: string) => api(`/api/t/${token}/prefs`, json("PUT", { characterId: ch.id, raid: "serca", difficulty }));
+    const current = weekStartIso(new Date(), Number(env.RESET_HOUR_UTC));
+    const previous = new Date(new Date(current).getTime() - 7 * 86400_000).toISOString();
+    await env.DB.prepare("INSERT INTO clear (character_id, week_start, raid_key) VALUES (?, ?, ?)").bind(ch.id, previous, "serca-nightmare").run();
+    await clear("serca-nightmare");
+    await clear("kazeros-hard");
+
+    expect((await pref("nightmare")).status).toBe(200); // same difficulty keeps the clear
+    expect(rawClears(await storedClears(ch.id, current))).toEqual(["kazeros-hard", "serca-nightmare"]);
+
+    expect((await pref("hard")).status).toBe(200);
+    expect(rawClears(await storedClears(ch.id, current))).toEqual(["kazeros-hard"]);
+    expect(rawClears(await storedClears(ch.id, previous))).toEqual(["serca-nightmare"]);
+  });
+});
+
+describe("gold earner limit", () => {
+  type GoldView = { characters: { id: number; name: string; goldEarner: boolean; weeklyGold: number; weeklyBound: number; raids: { cleared: boolean }[] }[] };
+  const goldView = async (token: string) => (await (await api(`/api/t/${token}`)).json()) as GoldView;
+  const roster = ["A", "B", "C", "D", "E", "F", "G"].map((name, i) => ({ name, class: "Bard", ilvl: 1760 - i * 10 }));
+
+  it("zeroes the gold of the 7th character but keeps its clears", async () => {
+    const token = await createTracker(roster);
+    await api(`/api/t/${token}/mark-all`, json("POST", {}));
+    const { characters } = await goldView(token);
+    const g = characters.find((c) => c.name === "G")!;
+    expect(g.goldEarner).toBe(false);
+    expect(g.weeklyGold).toBe(0);
+    expect(g.weeklyBound).toBe(0);
+    expect(g.raids.some((r) => r.cleared)).toBe(true);
+    expect(characters.filter((c) => c.goldEarner)).toHaveLength(6);
+    expect(characters.filter((c) => c.goldEarner).every((c) => c.weeklyGold > 0)).toBe(true);
+  });
+
+  it("swaps earners when a character's ilvl rises, and applies to history", async () => {
+    const token = await createTracker(roster);
+    const g = (await goldView(token)).characters.find((c) => c.name === "G")!;
+    const current = weekStartIso(new Date(), Number(env.RESET_HOUR_UTC));
+    const previous = new Date(new Date(current).getTime() - 7 * 86400_000).toISOString();
+    await env.DB.prepare("INSERT INTO clear (character_id, week_start, raid_key) VALUES (?, ?, ?)").bind(g.id, previous, "armoche-normal").run();
+    const past = async () => ((await (await api(`/api/t/${token}/history`)).json()) as { weeks: { characters: { id: number; goldEarner: boolean; weeklyGold: number }[] }[] }).weeks[0].characters[0];
+
+    expect(await past()).toMatchObject({ id: g.id, goldEarner: false, weeklyGold: 0 });
+    await api(`/api/t/${token}/characters/${g.id}`, json("PATCH", { ilvl: 1800 }));
+    expect(await past()).toMatchObject({ id: g.id, goldEarner: true, weeklyGold: 27000 });
+    const after = await goldView(token);
+    expect(after.characters.find((c) => c.name === "G")!.goldEarner).toBe(true);
+    expect(after.characters.find((c) => c.name === "F")!.goldEarner).toBe(false);
+  });
+});
+
 describe("belgardin matching preference", () => {
   it("accepts matching at ilvl 1750 and rejects it below", async () => {
     const token = await createTracker([
@@ -232,7 +294,7 @@ describe("history", () => {
     const history = (await (await api(`/api/t/${token}/history`)).json()) as {
       weeks: { weekStart: string; characters: { name: string; clears: string[] }[] }[];
     };
-    expect(history.weeks).toEqual([{ weekStart: previous, characters: [{ id: ch.id, name: "Iochi", clears: [key], weeklyGold: expect.any(Number), weeklyBound: expect.any(Number) }] }]);
+    expect(history.weeks).toEqual([{ weekStart: previous, characters: [{ id: ch.id, name: "Iochi", clears: [key], goldEarner: true, weeklyGold: expect.any(Number), weeklyBound: expect.any(Number) }] }]);
   });
 });
 

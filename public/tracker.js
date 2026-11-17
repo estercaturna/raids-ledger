@@ -130,19 +130,24 @@ function updateProgress(ch) {
     r.input.disabled = !r.cleared && done >= MAX_RAIDS;
     syncRaidState(r);
   }
-  ch.weekGold = topGold(ch.raids.filter((r) => r.cleared).map((r) => r.gold ?? 0));
-  ch.weekBound = topBound(ch.raids.filter((r) => r.cleared));
-  setGoldLines(p.gold, ch.weekBound, ch.weekGold);
+  // Only the 6 highest item level characters earn gold; the server flags them.
+  const earns = ch.goldEarner !== false;
+  ch.weekGold = earns ? topGold(ch.raids.filter((r) => r.cleared).map((r) => r.gold ?? 0)) : 0;
+  ch.weekBound = earns ? topBound(ch.raids.filter((r) => r.cleared)) : 0;
+  setGoldLines(p.gold, ch.weekBound, ch.weekGold, earns);
   p.bar.style.width = max ? `${(done / max) * 100}%` : "0";
   updateRoster();
 }
 
-function setGoldLines(box, bound, total) {
+function setGoldLines(box, bound, total, earns = true) {
   const row = (label, value, extra = {}) => el("div", { className: "goldrow", ...extra }, el("span", { className: "label", textContent: label }), el("strong", { textContent: fmtGold(value) }));
   box.replaceChildren(
     row("Character gold", bound),
     row("Total gold", total, { title: "Each character can clear up to 3 raids per week for gold" }),
   );
+  box.classList.toggle("nogold", !earns);
+  box.title = earns ? "" : "Only the 6 characters with the highest item level earn gold";
+  if (!earns) box.append(el("small", { className: "nogold-note", textContent: "Outside the top 6 item levels: earns no gold" }));
 }
 
 function updateRoster() {
@@ -281,16 +286,16 @@ $("characters").addEventListener("dragover", (e) => {
   $("characters").insertBefore(dragging, next ?? null);
 });
 
-function goldBox(bound, total) {
+function goldBox(bound, total, earns) {
   const box = el("div", { className: "weekgold" });
-  setGoldLines(box, bound, total);
+  setGoldLines(box, bound, total, earns);
   return box;
 }
 
 function historyCard(week, ch) {
   return el("article", { className: "card" },
     el("header", {}, el("div", { className: "who" }, el("h2", { textContent: ch.name })), el("span", { className: "progress" })),
-    goldBox(ch.weeklyBound ?? 0, ch.weeklyGold),
+    goldBox(ch.weeklyBound ?? 0, ch.weeklyGold, ch.goldEarner !== false),
     el("ul", { className: "raids" }, ...ch.clears.map((k) => el("li", {}, el("div", { className: "raid readonly" }, el("span", { className: "check", textContent: "✓" }), el("span", { className: "name", textContent: prettyKey(k) }))))),
   );
 }

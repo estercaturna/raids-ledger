@@ -117,3 +117,20 @@ export function weeklyBoundGold(keys: string[], table: RaidEntry[] = RAIDS): num
     .slice(0, GOLD_RAIDS_PER_CHARACTER)
     .reduce((sum, e) => sum + (e.bound ?? 0), 0);
 }
+
+/** In-game rule: only a roster's 6 strongest characters earn gold each week. */
+export const GOLD_EARNERS_PER_ROSTER = 6;
+
+/**
+ * Ids of the characters that earn gold: highest ilvl first, ties by higher combat power
+ * (missing cp ranks last), then roster order. `characters` must already be in roster order.
+ */
+export function goldEarnerIds(characters: { id: number; ilvl: number; cp: number | null }[]): Set<number> {
+  return new Set(
+    characters
+      .map((ch, position) => ({ ...ch, position }))
+      .sort((a, b) => b.ilvl - a.ilvl || (b.cp ?? -1) - (a.cp ?? -1) || a.position - b.position)
+      .slice(0, GOLD_EARNERS_PER_ROSTER)
+      .map((ch) => ch.id),
+  );
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eligibleRaids, RAIDS, weeklyBoundGold, weeklyGold, type RaidEntry } from "../src/raids";
+import { eligibleRaids, goldEarnerIds, RAIDS, weeklyBoundGold, weeklyGold, type RaidEntry } from "../src/raids";
 
 const table: RaidEntry[] = [
   { raid: "a", name: "A", difficulty: "normal", minIlvl: 1400 },
@@ -62,5 +62,32 @@ describe("Belgardin matching mode", () => {
     expect(e.bound).toBe(25000);
     expect(weeklyBoundGold(["belgardin-matching"])).toBe(25000);
     expect(weeklyBoundGold(["belgardin-normal"])).toBe(0);
+  });
+});
+
+describe("goldEarnerIds", () => {
+  const roster = (ilvls: (number | [number, number | null])[]) =>
+    ilvls.map((v, i) => (Array.isArray(v) ? { id: i + 1, ilvl: v[0], cp: v[1] } : { id: i + 1, ilvl: v, cp: null }));
+
+  it("includes everyone in a roster of 6 or fewer", () => {
+    expect([...goldEarnerIds(roster([1700, 1600, 1500]))].sort()).toEqual([1, 2, 3]);
+  });
+
+  it("drops the lowest ilvl from a roster of 7", () => {
+    const ids = goldEarnerIds(roster([1700, 1710, 1720, 1730, 1740, 1650, 1750]));
+    expect(ids.size).toBe(6);
+    expect(ids.has(6)).toBe(false);
+  });
+
+  it("breaks ilvl ties by higher cp, with a missing cp last", () => {
+    const base = [1750, 1750, 1750, 1750, 1750];
+    expect(goldEarnerIds(roster([...base, [1700, null], [1700, 5000]])).has(7)).toBe(true);
+    expect(goldEarnerIds(roster([...base, [1700, null], [1700, 5000]])).has(6)).toBe(false);
+  });
+
+  it("falls back to roster order when ilvl and cp tie", () => {
+    const ids = goldEarnerIds(roster([1700, 1700, 1700, 1700, 1700, 1700, 1700]));
+    expect(ids.has(6)).toBe(true);
+    expect(ids.has(7)).toBe(false);
   });
 });

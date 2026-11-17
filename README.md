@@ -26,6 +26,7 @@ Tick clears, see your gold, never lose track of the week. No login, just a secre
 - **One-click clears** with optimistic updates, plus **Mark all** per character or for everyone.
 - **3-raid weekly limit.** Only 3 raids per character earn gold, so the UI stops you at 3. Mark all fills the highest-paying slots.
 - **Gold tracking.** Gold per raid, and each character card shows weekly Character gold (character-bound) and Total gold (character plus roster), for the current and past weeks.
+- **6 gold earners.** Only the 6 characters with the highest item level earn gold (ties by combat power, then roster order); the others still track clears but count 0 gold. Changing a raid's difficulty drops the earlier clear of that raid this week.
 - **Weekly reset with history.** Clears reset every Wednesday and past weeks stay browsable.
 - **Drag to reorder** characters, with class icons and a dark, Lost Ark Nexus-inspired look.
 

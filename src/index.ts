@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { CLASS_GROUPS } from "./classes";
-import { eligibleRaids, GOLD_RAIDS_PER_CHARACTER, RAIDS, weeklyBoundGold, weeklyGold, type RaidPrefs } from "./raids";
+import { eligibleRaids, GOLD_RAIDS_PER_CHARACTER, goldEarnerIds, RAIDS, raidKey, weeklyBoundGold, weeklyGold, type Difficulty, type RaidPrefs } from "./raids";
 import { generateToken, hashToken } from "./token";
 import { validateCharacter, validateRoster, type CharacterInput } from "./validation";
 import { nextResetIso, rotationName, weekStartIso } from "./week";
@@ -124,13 +124,16 @@ app.get("/api/t/:token", async (c) => {
   const prefs = await loadPrefs(c.env.DB, trackerId);
 
   const rotation = c.get("rotationEnabled") ? weekRotation(c.env, week) : undefined;
+  const earners = goldEarnerIds(characters);
   return c.json({
     weekStart: week,
     nextReset: nextResetIso(week),
     ...(rotation && { rotation: { name: rotation } }),
     characters: characters.map((ch) => {
       const raids = eligibleRaids(ch.ilvl, RAIDS, prefs.get(ch.id)).map((r) => ({ ...r, cleared: cleared.has(`${ch.id}:${r.key}`) }));
-      return { ...ch, raids, weeklyGold: weeklyGold(raids.filter((r) => r.cleared).map((r) => r.key)), weeklyBound: weeklyBoundGold(raids.filter((r) => r.cleared).map((r) => r.key)) };
+      const keys = raids.filter((r) => r.cleared).map((r) => r.key);
+      const goldEarner = earners.has(ch.id);
+      return { ...ch, goldEarner, raids, weeklyGold: goldEarner ? weeklyGold(keys) : 0, weeklyBound: goldEarner ? weeklyBoundGold(keys) : 0 };
     }),
   });
 });
@@ -232,9 +235,15 @@ app.put("/api/t/:token/prefs", async (c) => {
   if (!ch) return c.json({ error: "not_found" }, 404);
   const raid = eligibleRaids(ch.ilvl).find((r) => r.raid === body.raid);
   if (!raid || !raid.options.some((o) => o.difficulty === body.difficulty)) return c.json({ error: "not_eligible" }, 400);
-  await c.env.DB.prepare("INSERT OR REPLACE INTO raid_pref (character_id, raid, difficulty) VALUES (?, ?, ?)")
-    .bind(characterId, body.raid, body.difficulty)
-    .run();
+  // A clear of another difficulty of this raid would otherwise stay stored and keep counting in history.
+  const keep = raidKey(body.raid, body.difficulty as Difficulty);
+  const stale = RAIDS.filter((e) => e.raid === body.raid)
+    .map((e) => raidKey(e.raid, e.difficulty))
+    .filter((k) => k !== keep);
+  await c.env.DB.batch([
+    c.env.DB.prepare("INSERT OR REPLACE INTO raid_pref (character_id, raid, difficulty) VALUES (?, ?, ?)").bind(characterId, body.raid, body.difficulty),
+    ...stale.map((k) => c.env.DB.prepare("DELETE FROM clear WHERE character_id = ? AND week_start = ? AND raid_key = ?").bind(characterId, currentWeek(c.env), k)),
+  ]);
   return c.json({ ok: true });
 });
 
@@ -289,12 +298,16 @@ app.get("/api/t/:token/history", async (c) => {
     chars.set(r.character_id, entry);
     weeks.set(r.week_start, chars);
   }
+  const earners = goldEarnerIds(await loadCharacters(c.env.DB, trackerId));
   const rotationOn = c.get("rotationEnabled");
   return c.json({
     weeks: [...weeks].map(([weekStart, chars]) => ({
       weekStart,
       ...(rotationOn && { rotationName: weekRotation(c.env, weekStart) }),
-      characters: [...chars.values()].map((ch) => ({ ...ch, weeklyGold: weeklyGold(ch.clears), weeklyBound: weeklyBoundGold(ch.clears) })),
+      characters: [...chars.values()].map((ch) => {
+        const goldEarner = earners.has(ch.id);
+        return { ...ch, goldEarner, weeklyGold: goldEarner ? weeklyGold(ch.clears) : 0, weeklyBound: goldEarner ? weeklyBoundGold(ch.clears) : 0 };
+      }),
     })),
   });
 });
