@@ -177,6 +177,20 @@ describe("difficulty preference", () => {
   });
 });
 
+describe("belgardin matching preference", () => {
+  it("accepts matching at ilvl 1750 and rejects it below", async () => {
+    const token = await createTracker([
+      { name: "A", class: "Bard", ilvl: 1750 },
+      { name: "B", class: "Paladin", ilvl: 1740 },
+    ]);
+    const [a, b] = (await view(token)).characters;
+    const put = (id: number) => api(`/api/t/${token}/prefs`, json("PUT", { characterId: id, raid: "belgardin", difficulty: "matching" }));
+    expect((await put(a.id)).status).toBe(200);
+    expect((await view(token)).characters.find((c) => c.id === a.id)!.raids.find((r) => r.key === "belgardin-matching")).toBeDefined();
+    expect((await put(b.id)).status).toBe(400);
+  });
+});
+
 describe("roster editing", () => {
   it("recomputes eligibility on ilvl update and keeps current clears", async () => {
     const token = await createTracker([{ name: "A", class: "Bard", ilvl: 1705 }]);

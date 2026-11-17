@@ -132,9 +132,17 @@ function updateProgress(ch) {
   }
   ch.weekGold = topGold(ch.raids.filter((r) => r.cleared).map((r) => r.gold ?? 0));
   ch.weekBound = topBound(ch.raids.filter((r) => r.cleared));
-  p.gold.textContent = `${fmtGold(ch.weekGold)} this week`;
+  setGoldLines(p.gold, ch.weekBound, ch.weekGold);
   p.bar.style.width = max ? `${(done / max) * 100}%` : "0";
   updateRoster();
+}
+
+function setGoldLines(box, bound, total) {
+  const row = (label, value, extra = {}) => el("div", { className: "goldrow", ...extra }, el("span", { className: "label", textContent: label }), el("strong", { textContent: fmtGold(value) }));
+  box.replaceChildren(
+    row("Character gold", bound),
+    row("Total gold", total, { title: "Each character can clear up to 3 raids per week for gold" }),
+  );
 }
 
 function updateRoster() {
@@ -208,7 +216,7 @@ function characterCard(ch, tiers) {
   const avatar = el("div", { className: "avatar", title: ch.class }, classIcon(ch.class));
   const text = el("span", { className: "text", textContent: "" });
   const bar = el("i");
-  const gold = el("div", { className: "weekgold", title: "Each character can clear up to 3 raids per week for gold" });
+  const gold = el("div", { className: "weekgold" });
   progressEls.set(ch.id, { text, bar, gold });
   card.append(
     el("header", {},
@@ -273,9 +281,16 @@ $("characters").addEventListener("dragover", (e) => {
   $("characters").insertBefore(dragging, next ?? null);
 });
 
+function goldBox(bound, total) {
+  const box = el("div", { className: "weekgold" });
+  setGoldLines(box, bound, total);
+  return box;
+}
+
 function historyCard(week, ch) {
   return el("article", { className: "card" },
-    el("header", {}, el("div", { className: "who" }, el("h2", { textContent: ch.name })), el("span", { className: "progress", textContent: fmtGold(ch.weeklyGold) })),
+    el("header", {}, el("div", { className: "who" }, el("h2", { textContent: ch.name })), el("span", { className: "progress" })),
+    goldBox(ch.weeklyBound ?? 0, ch.weeklyGold),
     el("ul", { className: "raids" }, ...ch.clears.map((k) => el("li", {}, el("div", { className: "raid readonly" }, el("span", { className: "check", textContent: "✓" }), el("span", { className: "name", textContent: prettyKey(k) }))))),
   );
 }

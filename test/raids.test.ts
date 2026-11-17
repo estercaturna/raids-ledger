@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eligibleRaids, weeklyBoundGold, weeklyGold, type RaidEntry } from "../src/raids";
+import { eligibleRaids, RAIDS, weeklyBoundGold, weeklyGold, type RaidEntry } from "../src/raids";
 
 const table: RaidEntry[] = [
   { raid: "a", name: "A", difficulty: "normal", minIlvl: 1400 },
@@ -46,5 +46,21 @@ describe("weeklyBoundGold", () => {
 
   it("sums bound gold of only the top-paying raids", () => {
     expect(weeklyBoundGold(["a-normal", "b-hard", "c-normal", "d-normal"], table)).toBe(40);
+  });
+});
+
+describe("Belgardin matching mode", () => {
+  it("is offered but never the default", () => {
+    const e = eligibleRaids(1750, RAIDS).find((x) => x.raid === "belgardin")!;
+    expect(e.key).toBe("belgardin-normal");
+    expect(e.options.map((o) => o.difficulty)).toEqual(["matching", "normal"]);
+  });
+
+  it("uses a stored matching preference and splits gold 50/50", () => {
+    const e = eligibleRaids(1750, RAIDS, { belgardin: "matching" }).find((x) => x.raid === "belgardin")!;
+    expect(e.key).toBe("belgardin-matching");
+    expect(e.bound).toBe(25000);
+    expect(weeklyBoundGold(["belgardin-matching"])).toBe(25000);
+    expect(weeklyBoundGold(["belgardin-normal"])).toBe(0);
   });
 });

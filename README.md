@@ -22,10 +22,10 @@ Tick clears, see your gold, never lose track of the week. No login, just a secre
 - **Secret-link trackers.** No accounts: you get a private `/t/<token>` link. Share it to share the tracker.
 - **Manual roster.** Add characters by name, class (picked from the full class list) and item level.
 - **Eligible raids per character.** Armoche, Kazeros, Serca, Horizon Cathedral and Belgardin, filtered by ilvl.
-- **Difficulty choice.** Defaults to the highest eligible difficulty, and you can drop to a lower one (for example Serca Hard instead of Nightmare).
+- **Difficulty choice.** Defaults to the highest eligible difficulty, and you can drop to a lower one (for example Serca Hard instead of Nightmare). Belgardin also offers Matching Mode (Normal gold, 50% character gold), never selected by default.
 - **One-click clears** with optimistic updates, plus **Mark all** per character or for everyone.
 - **3-raid weekly limit.** Only 3 raids per character earn gold, so the UI stops you at 3. Mark all fills the highest-paying slots.
-- **Gold tracking.** Gold per raid and the weekly total per character.
+- **Gold tracking.** Gold per raid, and each character card shows weekly Character gold (character-bound) and Total gold (character plus roster), for the current and past weeks.
 - **Weekly reset with history.** Clears reset every Wednesday and past weeks stay browsable.
 - **Drag to reorder** characters, with class icons and a dark, Lost Ark Nexus-inspired look.
 
@@ -55,7 +55,7 @@ npm run typecheck
 | Raid ilvl requirements and gold | `RAIDS` in `src/raids.ts` | current Tier 4 raids |
 | Class list | `src/classes.ts` | all classes |
 
-Raid data comes from Maxroll, Smilegate/Inven and lostmokokos.com. Check it against the game after patches.
+Raid data comes from Maxroll, Smilegate/Inven and lostmokokos.com. Only Belgardin Matching Mode pays character-bound gold; Belgardin Normal, Hard and Nightmare are treated as 100% roster gold (Hard/Nightmare bound is assumed 0, unverified). Check it against the game after patches.
 
 ### Class icons (optional)
 

@@ -101,6 +101,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .card footer button { padding: .35rem .65rem; font-size: .85rem; }
 .empty { color: var(--muted); font-size: .9rem; padding: .4rem 0; }
 .raid select.diff { padding: .15rem .4rem; font-size: .75rem; border-radius: 999px; }
+.raid select.diff.matching { color: #38bdf8; }
 .raid select.diff.hard { color: #fbbf24; }
 .raid select.diff.nightmare { color: #f87171; }
 .avatar > span { width: 100%; height: 100%; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; overflow: hidden; }
@@ -124,7 +125,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .card--mvp .who h2, .card--mvp .ilvl { color: #fbbf24; }
 .card--strong { box-shadow: 0 0 0 2px #c084fc, 0 0 14px rgba(244, 114, 182, .35); border-color: #f472b6; }
 .raid .gold { color: #fbbf24; font-size: .8rem; font-variant-numeric: tabular-nums; min-width: 4.5rem; text-align: right; }
-.weekgold { font-weight: 600; color: #fbbf24; font-variant-numeric: tabular-nums; }
+.weekgold { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; font-variant-numeric: tabular-nums; }
+.goldrow { display: flex; flex-direction: column; gap: .15rem; padding: .5rem .75rem; border-radius: .7rem; border: 1px solid var(--border); background: rgba(30, 41, 59, .5); }
+.goldrow .label { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.goldrow strong { color: #fbbf24; font-size: 1rem; }
+.goldrow:last-child { border-color: rgba(251, 191, 36, .35); background: rgba(251, 191, 36, .08); }
 .roster { display: flex; flex-direction: row; gap: 2rem; width: fit-content; margin: 0 0 1.25rem; padding: .7rem 1rem; border: 1px solid var(--border); border-radius: .8rem; background: var(--card); }
 .roster small { color: var(--muted); }
 .roster strong { color: #fbbf24; font-size: 1.15rem; font-variant-numeric: tabular-nums; }

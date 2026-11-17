@@ -1,4 +1,4 @@
-export type Difficulty = "normal" | "hard" | "nightmare" | "stage-1" | "stage-2" | "stage-3";
+export type Difficulty = "matching" | "normal" | "hard" | "nightmare" | "stage-1" | "stage-2" | "stage-3";
 
 export interface RaidEntry {
   raid: string;
@@ -35,14 +35,18 @@ export const RAIDS: RaidEntry[] = [
   { raid: "horizon-cathedral", name: "Horizon Cathedral", difficulty: "stage-1", minIlvl: 1700, gold: 30000, bound: 30000 },
   { raid: "horizon-cathedral", name: "Horizon Cathedral", difficulty: "stage-2", minIlvl: 1720, gold: 40000, bound: 40000 },
   { raid: "horizon-cathedral", name: "Horizon Cathedral", difficulty: "stage-3", minIlvl: 1750, gold: 50000, bound: 50000 },
-  { raid: "belgardin", name: "Belgardin", difficulty: "normal", minIlvl: 1750, gold: 50000, bound: 25000 },
+  // Only Matching Mode pays 50% character-bound gold. Normal/Hard/Nightmare are treated as 100% roster
+  // gold; Hard/Nightmare bound is unverified in-game and assumed to be 0.
+  { raid: "belgardin", name: "Belgardin", difficulty: "matching", minIlvl: 1750, gold: 50000, bound: 25000 },
+  { raid: "belgardin", name: "Belgardin", difficulty: "normal", minIlvl: 1750, gold: 50000 },
   { raid: "belgardin", name: "Belgardin", difficulty: "hard", minIlvl: 1770, gold: 62000 },
   { raid: "belgardin", name: "Belgardin", difficulty: "nightmare", minIlvl: 1780, gold: 75000 },
 ];
 
-const RANK: Record<Difficulty, number> = { normal: 0, hard: 1, nightmare: 2, "stage-1": 0, "stage-2": 1, "stage-3": 2 };
+const RANK: Record<Difficulty, number> = { matching: -1, normal: 0, hard: 1, nightmare: 2, "stage-1": 0, "stage-2": 1, "stage-3": 2 };
 
 const LABELS: Record<Difficulty, string> = {
+  matching: "Matching",
   normal: "Normal",
   hard: "Hard",
   nightmare: "Nightmare",
