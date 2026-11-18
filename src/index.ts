@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { CLASS_GROUPS } from "./classes";
-import { eligibleRaids, GOLD_RAIDS_PER_CHARACTER, goldEarnerIds, RAIDS, raidKey, weeklyBoundGold, weeklyGold, type Difficulty, type RaidPrefs } from "./raids";
+import { eligibleEventRaids, eligibleRaids, GOLD_RAIDS_PER_CHARACTER, goldEarnerIds, RAIDS, raidKey, weeklyBoundGold, weeklyEventBound, weeklyEventGold, weeklyGold, type Difficulty, type RaidPrefs } from "./raids";
 import { generateToken, hashToken } from "./token";
 import { validateCharacter, validateRoster, type CharacterInput } from "./validation";
 import { nextResetIso, rotationName, weekStartIso } from "./week";
@@ -125,15 +125,35 @@ app.get("/api/t/:token", async (c) => {
 
   const rotation = c.get("rotationEnabled") ? weekRotation(c.env, week) : undefined;
   const earners = goldEarnerIds(characters);
+  // Event raids allow one clear per tracker per week, whichever difficulty and character.
+  const eventLocks = new Map<string, { id: number; name: string }>();
+  for (const cl of clears) {
+    const entry = RAIDS.find((e) => e.event && raidKey(e.raid, e.difficulty) === cl.raid_key);
+    const owner = characters.find((x) => x.id === cl.character_id);
+    if (entry && owner) eventLocks.set(entry.raid, { id: owner.id, name: owner.name });
+  }
   return c.json({
     weekStart: week,
     nextReset: nextResetIso(week),
     ...(rotation && { rotation: { name: rotation } }),
     characters: characters.map((ch) => {
       const raids = eligibleRaids(ch.ilvl, RAIDS, prefs.get(ch.id)).map((r) => ({ ...r, cleared: cleared.has(`${ch.id}:${r.key}`) }));
+      const eventRaids = eligibleEventRaids(ch.ilvl, week, RAIDS, prefs.get(ch.id)).map((r) => ({
+        ...r,
+        cleared: cleared.has(`${ch.id}:${r.key}`),
+        lockedBy: eventLocks.get(r.raid) && eventLocks.get(r.raid)!.id !== ch.id ? eventLocks.get(r.raid)!.name : null,
+      }));
       const keys = raids.filter((r) => r.cleared).map((r) => r.key);
+      const eventKeys = eventRaids.filter((r) => r.cleared).map((r) => r.key);
       const goldEarner = earners.has(ch.id);
-      return { ...ch, goldEarner, raids, weeklyGold: goldEarner ? weeklyGold(keys) : 0, weeklyBound: goldEarner ? weeklyBoundGold(keys) : 0 };
+      return {
+        ...ch,
+        goldEarner,
+        raids,
+        eventRaids,
+        weeklyGold: (goldEarner ? weeklyGold(keys) : 0) + weeklyEventGold(eventKeys),
+        weeklyBound: (goldEarner ? weeklyBoundGold(keys) : 0) + weeklyEventBound(eventKeys),
+      };
     }),
   });
 });
@@ -190,11 +210,25 @@ app.put("/api/t/:token/clears", async (c) => {
   const ch = await findCharacter(c.env.DB, c.get("trackerId"), characterId);
   if (!ch) return c.json({ error: "not_found" }, 404);
   const chPrefs = (await loadPrefs(c.env.DB, c.get("trackerId"))).get(ch.id);
-  const eligible = eligibleRaids(ch.ilvl, RAIDS, chPrefs);
-  if (!eligible.some((r) => r.key === body.raidKey)) return c.json({ error: "not_eligible" }, 400);
-
   const week = currentWeek(c.env);
-  if (body.cleared) {
+  const eligible = eligibleRaids(ch.ilvl, RAIDS, chPrefs);
+  const eventEligible = eligibleEventRaids(ch.ilvl, week, RAIDS, chPrefs).find((r) => r.key === body.raidKey);
+  if (!eventEligible && !eligible.some((r) => r.key === body.raidKey)) return c.json({ error: "not_eligible" }, 400);
+
+  if (body.cleared && eventEligible) {
+    const sameRaid = RAIDS.filter((e) => e.raid === eventEligible.raid).map((e) => raidKey(e.raid, e.difficulty));
+    const taken = await c.env.DB.prepare(
+      `SELECT 1 FROM clear cl JOIN character ch ON ch.id = cl.character_id
+       WHERE ch.tracker_id = ? AND cl.week_start = ? AND cl.raid_key IN (${sameRaid.map(() => "?").join(",")})
+       AND NOT (cl.character_id = ? AND cl.raid_key = ?)`,
+    )
+      .bind(c.get("trackerId"), week, ...sameRaid, characterId, body.raidKey)
+      .first();
+    if (taken) return c.json({ error: "roster_limit_reached" }, 409);
+    await c.env.DB.prepare("INSERT OR IGNORE INTO clear (character_id, week_start, raid_key) VALUES (?, ?, ?)")
+      .bind(characterId, week, body.raidKey)
+      .run();
+  } else if (body.cleared) {
     // Only the visible (currently eligible) clears count towards the limit.
     const { results: rows } = await c.env.DB.prepare("SELECT raid_key FROM clear WHERE character_id = ? AND week_start = ?")
       .bind(characterId, week)
@@ -233,7 +267,7 @@ app.put("/api/t/:token/prefs", async (c) => {
   }
   const ch = await findCharacter(c.env.DB, c.get("trackerId"), characterId);
   if (!ch) return c.json({ error: "not_found" }, 404);
-  const raid = eligibleRaids(ch.ilvl).find((r) => r.raid === body.raid);
+  const raid = [...eligibleRaids(ch.ilvl), ...eligibleEventRaids(ch.ilvl, currentWeek(c.env))].find((r) => r.raid === body.raid);
   if (!raid || !raid.options.some((o) => o.difficulty === body.difficulty)) return c.json({ error: "not_eligible" }, 400);
   // A clear of another difficulty of this raid would otherwise stay stored and keep counting in history.
   const keep = raidKey(body.raid, body.difficulty as Difficulty);
@@ -306,7 +340,12 @@ app.get("/api/t/:token/history", async (c) => {
       ...(rotationOn && { rotationName: weekRotation(c.env, weekStart) }),
       characters: [...chars.values()].map((ch) => {
         const goldEarner = earners.has(ch.id);
-        return { ...ch, goldEarner, weeklyGold: goldEarner ? weeklyGold(ch.clears) : 0, weeklyBound: goldEarner ? weeklyBoundGold(ch.clears) : 0 };
+        return {
+          ...ch,
+          goldEarner,
+          weeklyGold: (goldEarner ? weeklyGold(ch.clears) : 0) + weeklyEventGold(ch.clears),
+          weeklyBound: (goldEarner ? weeklyBoundGold(ch.clears) : 0) + weeklyEventBound(ch.clears),
+        };
       }),
     })),
   });

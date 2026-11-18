@@ -27,6 +27,7 @@ Tick clears, see your gold, never lose track of the week. No login, just a secre
 - **3-raid weekly limit.** Only 3 raids per character earn gold, so the UI stops you at 3. Mark all fills the highest-paying slots.
 - **Gold tracking.** Gold per raid, and each character card shows weekly Character gold (character-bound) and Total gold (character plus roster), for the current and past weeks.
 - **6 gold earners.** Only the 6 characters with the highest item level earn gold (ties by combat power, then roster order); the others still track clears but count 0 gold. Changing a raid's difficulty drops the earlier clear of that raid this week.
+- **Event raids.** Time-limited raids such as Extreme Mordum (18 Nov to 16 Dec 2026, 1730+ Normal / 1770+ Hard) get their own Event section. They pay on top of the 3-raid limit, even to characters outside the top 6, and only one character per tracker can clear one per week.
 - **Weekly reset with history.** Clears reset every Wednesday and past weeks stay browsable.
 - **Drag to reorder** characters (also while sorted or filtered), with class icons and a dark, Lost Ark Nexus-inspired look.
 - **View options.** Sort by roster order, item level or combat power or show only gold earners. Preferences are remembered per browser and never change the stored order. Animations respect reduced-motion settings.
@@ -57,7 +58,7 @@ npm run typecheck
 | Raid ilvl requirements and gold | `RAIDS` in `src/raids.ts` | current Tier 4 raids |
 | Class list | `src/classes.ts` | all classes |
 
-Raid data comes from Maxroll, Smilegate/Inven and lostmokokos.com. Only Belgardin Matching Mode pays character-bound gold; Belgardin Normal, Hard and Nightmare are treated as 100% roster gold (Hard/Nightmare bound is assumed 0, unverified). Check it against the game after patches.
+Raid data comes from Maxroll, Smilegate/Inven, lostmokokos.com and the official patch notes (Extreme Mordum). Extreme Mordum's gold is treated as 100% roster gold because the notes don't say (unverified). Only Belgardin Matching Mode pays character-bound gold; Belgardin Normal, Hard and Nightmare are treated as 100% roster gold (Hard/Nightmare bound is assumed 0, unverified). Check it against the game after patches.
 
 ### Class icons (optional)
 

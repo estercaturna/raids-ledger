@@ -118,6 +118,7 @@ function raidChip(ch, raid) {
     updateProgress(ch);
     try {
       await send("/clears", "PUT", { characterId: ch.id, raidKey: raid.key, cleared: input.checked });
+      if (raid.eventUntil) await refresh(); // the roster entry is now taken or freed for the other characters
     } catch (e) {
       raid.cleared = !input.checked;
       input.checked = raid.cleared;
@@ -125,7 +126,7 @@ function raidChip(ch, raid) {
       showError(e.message);
     }
   });
-  const label = el("label", { className: `raid d-${raid.difficulty}` }, input, el("span", { className: "check", textContent: "✓" }), el("span", { className: "name", textContent: raid.name }), difficultyControl(ch, raid), el("span", { className: "gold", textContent: raid.gold ? fmtGold(raid.gold) : "—", title: raid.gold ? "" : "Gold not published yet" }));
+  const label = el("label", { className: `raid d-${raid.difficulty}` }, input, el("span", { className: "check", textContent: "✓" }), el("span", { className: "name" }, raid.name, ...(raid.eventUntil ? [el("span", { className: "event-tag", textContent: "EVENT" })] : [])), difficultyControl(ch, raid), el("span", { className: "gold", textContent: raid.gold ? fmtGold(raid.gold) : "—", title: raid.gold ? "" : "Gold not published yet" }));
   raid.label = label;
   syncRaidState(raid);
   return el("li", {}, label);
@@ -152,9 +153,16 @@ function updateProgress(ch) {
   }
   // Only the 6 highest item level characters earn gold; the server flags them.
   const earns = ch.goldEarner !== false;
-  ch.weekGold = earns ? topGold(ch.raids.filter((r) => r.cleared).map((r) => r.gold ?? 0)) : 0;
-  ch.weekBound = earns ? topBound(ch.raids.filter((r) => r.cleared)) : 0;
-  setGoldLines(p.gold, ch.weekBound, ch.weekGold, earns);
+  // Event raids pay on top of the 3 raids, even to characters that earn no regular gold.
+  const events = (ch.eventRaids ?? []).filter((r) => r.cleared);
+  for (const r of ch.eventRaids ?? []) {
+    if (!r.input) continue;
+    r.input.disabled = !r.cleared && !!r.lockedBy;
+    syncRaidState(r);
+  }
+  ch.weekGold = (earns ? topGold(ch.raids.filter((r) => r.cleared).map((r) => r.gold ?? 0)) : 0) + events.reduce((s, r) => s + (r.gold ?? 0), 0);
+  ch.weekBound = (earns ? topBound(ch.raids.filter((r) => r.cleared)) : 0) + events.reduce((s, r) => s + (r.bound ?? 0), 0);
+  setGoldLines(p.gold, ch.weekBound, ch.weekGold, earns || events.length > 0);
   p.bar.style.width = max ? `${(done / max) * 100}%` : "0";
   updateRoster();
 }
@@ -268,7 +276,17 @@ function characterCard(ch, tiers) {
     gold,
   );
   if (ch.raids.length) card.append(el("ul", { className: "raids" }, ...[...ch.raids].sort((a, b) => raidRank(a) - raidRank(b)).map((r) => raidChip(ch, r))));
-  else card.append(el("p", { className: "empty", textContent: "No eligible raids at this item level." }));
+  else if (!ch.eventRaids?.length) card.append(el("p", { className: "empty", textContent: "No eligible raids at this item level." }));
+  if (ch.eventRaids?.length) {
+    const until = fmtWeek(ch.eventRaids[0].eventUntil);
+    card.append(
+      el("div", { className: "event-section" },
+        el("h4", { textContent: `Event · until ${until}` }),
+        el("ul", { className: "raids" }, ...ch.eventRaids.map((r) => raidChip(ch, r))),
+        ...ch.eventRaids.filter((r) => r.lockedBy).slice(0, 1).map((r) => el("small", { className: "event-note", textContent: `${r.lockedBy} already used this week's roster entry` })),
+      ),
+    );
+  }
   updateProgress(ch);
 
   const markAll = el("button", { textContent: "Mark all", disabled: !ch.raids.length, title: "Marks the 3 highest-paying raids" });

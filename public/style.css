@@ -92,6 +92,13 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .raid.locked .check { border-color: #334155; }
 .raid.locked .gold { color: rgba(251, 191, 36, .4); }
 .raid.locked select.diff.diff, .raid.locked .badge.badge { color: #64748b; border-color: rgba(51, 65, 85, .5); }
+.event-section { margin-top: .75rem; padding-top: .6rem; border-top: 1px dashed rgba(56, 189, 248, .35); }
+.event-section h4 { margin: 0 0 .4rem; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: #38bdf8; }
+.event-section .raid { border-color: rgba(56, 189, 248, .35); }
+.event-section .raid.done { background: rgba(56, 189, 248, .1); border-color: rgba(56, 189, 248, .6); }
+.event-section .raid.locked { border-color: rgba(51, 65, 85, .5); }
+.event-tag { display: inline-block; margin-left: .4rem; vertical-align: middle; font-size: .6rem; font-weight: 700; letter-spacing: .06em; padding: .1rem .35rem; border-radius: .3rem; color: #082f49; background: #38bdf8; }
+.event-note { display: block; margin-top: .35rem; color: var(--muted); }
 .raid.readonly { cursor: default; }
 .raid .name { flex: 1; font-weight: 500; }
 .badge { font-size: .7rem; padding: .15rem .5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }

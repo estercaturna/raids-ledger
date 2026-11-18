@@ -1,5 +1,5 @@
 import { env, exports } from "cloudflare:workers";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { weekStartIso } from "../src/week";
 
 const worker = (exports as unknown as { default: { fetch(r: Request): Promise<Response> } }).default;
@@ -348,5 +348,65 @@ describe("combat power", () => {
     expect((await api(`/api/t/${token}/characters/${b.id}`, json("PATCH", { cp: null }))).status).toBe(200);
     expect((await chars(token))[1].cp).toBeNull();
     expect((await api(`/api/t/${token}/characters/${b.id}`, json("PATCH", { cp: -3 }))).status).toBe(400);
+  });
+});
+
+describe("event raids", () => {
+  const roster = [
+    { name: "Aurelia", class: "Bard", ilvl: 1782 },
+    { name: "Brakka", class: "Berserker", ilvl: 1740 },
+    ...Array.from({ length: 6 }, (_, i) => ({ name: `Alt${i}`, class: "Bard", ilvl: 1700 - i })),
+  ];
+  type Ch = { id: number; name: string; weeklyGold: number; raids: { key: string }[]; eventRaids: { key: string; lockedBy: string | null; cleared: boolean }[] };
+  const state = async (token: string) => ((await (await api(`/api/t/${token}`)).json()) as { characters: Ch[] }).characters;
+  const clear = (token: string, characterId: number, raidKey: string, cleared = true) => api(`/api/t/${token}/clears`, json("PUT", { characterId, raidKey, cleared }));
+
+  afterEach(() => vi.useRealTimers());
+  const inWindow = () => vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-19T12:00:00Z") });
+
+  it("pays event gold on top of 3 regular raids and even to non-earners", async () => {
+    inWindow();
+    const token = await createTracker(roster);
+    const [aurelia, brakka, ...alts] = await state(token);
+    for (const r of aurelia.raids.slice(0, 3)) expect((await clear(token, aurelia.id, r.key)).status).toBe(200);
+    expect((await clear(token, aurelia.id, "mordum-hard")).status).toBe(200);
+    const after = await state(token);
+    expect(after[0].weeklyGold).toBeGreaterThanOrEqual(50000);
+    expect(brakka.eventRaids.map((r) => r.key)).toEqual(["mordum-normal"]);
+    expect(alts.at(-1)!.eventRaids).toEqual([]);
+  });
+
+  it("blocks a second character and frees the entry when unmarked", async () => {
+    inWindow();
+    const token = await createTracker(roster);
+    const [aurelia, brakka] = await state(token);
+    expect((await clear(token, aurelia.id, "mordum-hard")).status).toBe(200);
+    const blocked = await clear(token, brakka.id, "mordum-normal");
+    expect(blocked.status).toBe(409);
+    expect(((await blocked.json()) as { error: string }).error).toBe("roster_limit_reached");
+    expect((await state(token))[1].eventRaids[0].lockedBy).toBe("Aurelia");
+    await clear(token, aurelia.id, "mordum-hard", false);
+    expect((await clear(token, brakka.id, "mordum-normal")).status).toBe(200);
+  });
+
+  it("rejects event clears outside the window and ignores them in mark-all", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-12-17T12:00:00Z") });
+    const token = await createTracker(roster);
+    const [aurelia] = await state(token);
+    expect(aurelia.eventRaids).toEqual([]);
+    expect((await clear(token, aurelia.id, "mordum-hard")).status).toBe(400);
+    vi.setSystemTime(new Date("2026-11-19T12:00:00Z"));
+    await api(`/api/t/${token}/mark-all`, json("POST", {}));
+    expect((await state(token))[0].eventRaids.every((r) => !r.cleared)).toBe(true);
+  });
+
+  it("keeps event gold in history after the window ends", async () => {
+    inWindow();
+    const token = await createTracker(roster);
+    const [aurelia] = await state(token);
+    await clear(token, aurelia.id, "mordum-hard");
+    vi.setSystemTime(new Date("2026-12-17T12:00:00Z"));
+    const history = (await (await api(`/api/t/${token}/history`)).json()) as { weeks: { characters: { weeklyGold: number }[] }[] };
+    expect(history.weeks[0].characters[0].weeklyGold).toBe(50000);
   });
 });

@@ -9,6 +9,8 @@ export interface RaidEntry {
   gold?: number;
   /** Part of `gold` that is character-bound (the rest is tradable roster gold). Defaults to 0. */
   bound?: number;
+  /** Time-limited extra raid, offered only in game weeks from `fromWeek` to `toWeek` (inclusive, YYYY-MM-DD of the reset day). */
+  event?: { fromWeek: string; toWeek: string };
 }
 
 export interface Eligibility {
@@ -20,6 +22,8 @@ export interface Eligibility {
   minIlvl: number;
   gold: number | null;
   bound: number;
+  /** For event raids: the reset day (YYYY-MM-DD) on which the event ends. */
+  eventUntil?: string;
 }
 
 // Current endgame content only (Tier 4). Values from Maxroll (Armoche, Kazeros, Serca,
@@ -41,6 +45,10 @@ export const RAIDS: RaidEntry[] = [
   { raid: "belgardin", name: "Belgardin", difficulty: "normal", minIlvl: 1750, gold: 50000 },
   { raid: "belgardin", name: "Belgardin", difficulty: "hard", minIlvl: 1770, gold: 62000 },
   { raid: "belgardin", name: "Belgardin", difficulty: "nightmare", minIlvl: 1780, gold: 75000 },
+  // Event raid (official patch notes, 18 Nov 2026): paid in full to any character, outside the 3-raid limit,
+  // 1 entry per roster per week shared by both difficulties. Bound part is not published, so it counts as roster gold.
+  { raid: "mordum", name: "Extreme Mordum", difficulty: "normal", minIlvl: 1730, gold: 20000, event: { fromWeek: "2026-11-18", toWeek: "2026-12-09" } },
+  { raid: "mordum", name: "Extreme Mordum", difficulty: "hard", minIlvl: 1770, gold: 50000, event: { fromWeek: "2026-11-18", toWeek: "2026-12-09" } },
 ];
 
 const RANK: Record<Difficulty, number> = { matching: -1, normal: 0, hard: 1, nightmare: 2, "stage-1": 0, "stage-2": 1, "stage-3": 2 };
@@ -68,16 +76,33 @@ export interface EligibilityWithOptions extends Eligibility {
 /**
  * One entry per eligible raid. Uses the preferred difficulty when the character still
  * qualifies for it, otherwise the highest eligible one. `options` lists every eligible difficulty.
+ * Event raids are never included: they have their own limits (see `eligibleEventRaids`).
  */
 export function eligibleRaids(ilvl: number, table: RaidEntry[] = RAIDS, prefs: RaidPrefs = {}): EligibilityWithOptions[] {
+  return pickPerRaid(table.filter((e) => !e.event && e.minIlvl <= ilvl), prefs);
+}
+
+const weekDay = (weekIso: string) => weekIso.slice(0, 10);
+
+/** Event raids a character can clear in the game week starting at `weekIso`, shaped like `eligibleRaids`. */
+export function eligibleEventRaids(ilvl: number, weekIso: string, table: RaidEntry[] = RAIDS, prefs: RaidPrefs = {}): EligibilityWithOptions[] {
+  const day = weekDay(weekIso);
+  return pickPerRaid(
+    table.filter((e) => e.event && e.event.fromWeek <= day && day <= e.event.toWeek && e.minIlvl <= ilvl),
+    prefs,
+  );
+}
+
+function eventUntil(toWeek: string): string {
+  return new Date(Date.parse(toWeek) + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function pickPerRaid(entries: RaidEntry[], prefs: RaidPrefs): EligibilityWithOptions[] {
   const byRaid = new Map<string, RaidEntry[]>();
-  for (const entry of table) {
-    if (entry.minIlvl > ilvl) continue;
-    byRaid.set(entry.raid, [...(byRaid.get(entry.raid) ?? []), entry]);
-  }
-  return [...byRaid.values()].map((entries) => {
-    entries.sort((a, b) => RANK[a.difficulty] - RANK[b.difficulty]);
-    const e = entries.find((x) => x.difficulty === prefs[x.raid]) ?? entries[entries.length - 1];
+  for (const entry of entries) byRaid.set(entry.raid, [...(byRaid.get(entry.raid) ?? []), entry]);
+  return [...byRaid.values()].map((group) => {
+    group.sort((a, b) => RANK[a.difficulty] - RANK[b.difficulty]);
+    const e = group.find((x) => x.difficulty === prefs[x.raid]) ?? group[group.length - 1];
     return {
       key: raidKey(e.raid, e.difficulty),
       raid: e.raid,
@@ -87,21 +112,25 @@ export function eligibleRaids(ilvl: number, table: RaidEntry[] = RAIDS, prefs: R
       minIlvl: e.minIlvl,
       gold: e.gold ?? null,
       bound: e.bound ?? 0,
-      options: entries.map((x) => ({ difficulty: x.difficulty, label: LABELS[x.difficulty] })),
+      ...(e.event && { eventUntil: eventUntil(e.event.toWeek) }),
+      options: group.map((x) => ({ difficulty: x.difficulty, label: LABELS[x.difficulty] })),
     };
   });
 }
 
-/** Gold values come from lostmokokos.com (Sept 2026 patch); Belgardin from Maxroll (Oct 2026). */
+/** Gold values come from lostmokokos.com (Sept 2026 patch); Belgardin from Maxroll (Oct 2026); Extreme Mordum from the 18 Nov 2026 patch notes. */
 export const GOLD_RAIDS_PER_CHARACTER = 3;
 
 export function goldForKey(key: string, table: RaidEntry[] = RAIDS): number {
   return table.find((e) => raidKey(e.raid, e.difficulty) === key)?.gold ?? 0;
 }
 
-/** In-game rule: only a character's highest-paying cleared raids award gold. */
+const isEventKey = (key: string, table: RaidEntry[]) => !!table.find((e) => raidKey(e.raid, e.difficulty) === key)?.event;
+
+/** In-game rule: only a character's highest-paying cleared regular raids award gold. Event raids are excluded. */
 export function weeklyGold(keys: string[], table: RaidEntry[] = RAIDS): number {
   return keys
+    .filter((k) => !isEventKey(k, table))
     .map((k) => goldForKey(k, table))
     .sort((a, b) => b - a)
     .slice(0, GOLD_RAIDS_PER_CHARACTER)
@@ -111,10 +140,24 @@ export function weeklyGold(keys: string[], table: RaidEntry[] = RAIDS): number {
 /** Character-bound part of the gold a character earns: same top-paying raids as `weeklyGold`. */
 export function weeklyBoundGold(keys: string[], table: RaidEntry[] = RAIDS): number {
   return keys
+    .filter((k) => !isEventKey(k, table))
     .map((k) => table.find((e) => raidKey(e.raid, e.difficulty) === k))
     .filter((e): e is RaidEntry => !!e)
     .sort((a, b) => (b.gold ?? 0) - (a.gold ?? 0))
     .slice(0, GOLD_RAIDS_PER_CHARACTER)
+    .reduce((sum, e) => sum + (e.bound ?? 0), 0);
+}
+
+/** Gold of cleared event raids: added on top of the weekly gold and paid even to characters that are not gold earners. */
+export function weeklyEventGold(keys: string[], table: RaidEntry[] = RAIDS): number {
+  return keys.filter((k) => isEventKey(k, table)).reduce((sum, k) => sum + goldForKey(k, table), 0);
+}
+
+/** Character-bound part of `weeklyEventGold`. */
+export function weeklyEventBound(keys: string[], table: RaidEntry[] = RAIDS): number {
+  return keys
+    .map((k) => table.find((e) => raidKey(e.raid, e.difficulty) === k))
+    .filter((e): e is RaidEntry => !!e?.event)
     .reduce((sum, e) => sum + (e.bound ?? 0), 0);
 }
 

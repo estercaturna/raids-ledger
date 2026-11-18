@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eligibleRaids, goldEarnerIds, RAIDS, weeklyBoundGold, weeklyGold, type RaidEntry } from "../src/raids";
+import { eligibleEventRaids, eligibleRaids, goldEarnerIds, RAIDS, weeklyBoundGold, weeklyEventGold, weeklyGold, type RaidEntry } from "../src/raids";
 
 const table: RaidEntry[] = [
   { raid: "a", name: "A", difficulty: "normal", minIlvl: 1400 },
@@ -89,5 +89,33 @@ describe("goldEarnerIds", () => {
     const ids = goldEarnerIds(roster([1700, 1700, 1700, 1700, 1700, 1700, 1700]));
     expect(ids.has(6)).toBe(true);
     expect(ids.has(7)).toBe(false);
+  });
+});
+
+describe("event raids", () => {
+  it("are never part of eligibleRaids", () => {
+    expect(eligibleRaids(1782).some((e) => e.raid === "mordum")).toBe(false);
+  });
+
+  it("are offered only inside the window and above the ilvl", () => {
+    const keys = (ilvl: number, week: string) => eligibleEventRaids(ilvl, week).map((e) => e.key);
+    expect(keys(1782, "2026-11-18T10:00:00.000Z")).toEqual(["mordum-hard"]);
+    expect(keys(1750, "2026-12-09T10:00:00.000Z")).toEqual(["mordum-normal"]);
+    expect(keys(1782, "2026-11-11T10:00:00.000Z")).toEqual([]);
+    expect(keys(1782, "2026-12-16T10:00:00.000Z")).toEqual([]);
+    expect(keys(1729, "2026-11-18T10:00:00.000Z")).toEqual([]);
+  });
+
+  it("exposes the end date and both difficulties", () => {
+    const [e] = eligibleEventRaids(1782, "2026-11-18T10:00:00.000Z");
+    expect(e.eventUntil).toBe("2026-12-16");
+    expect(e.options.map((o) => o.difficulty)).toEqual(["normal", "hard"]);
+  });
+
+  it("add gold on top without displacing the top 3 raids", () => {
+    const keys = ["armoche-hard", "kazeros-hard", "serca-hard", "mordum-hard"];
+    expect(weeklyGold(keys)).toBe(weeklyGold(keys.slice(0, 3)));
+    expect(weeklyEventGold(keys)).toBe(50000);
+    expect(weeklyEventGold(["mordum-normal"])).toBe(20000);
   });
 });
