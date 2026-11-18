@@ -29,6 +29,7 @@ Tick clears, see your gold, never lose track of the week. No login, just a secre
 - **6 gold earners.** Only the 6 characters with the highest item level earn gold (ties by combat power, then roster order); the others still track clears but count 0 gold. Changing a raid's difficulty drops the earlier clear of that raid this week.
 - **Event raids.** Time-limited raids such as Extreme Mordum (18 Nov to 16 Dec 2026, 1730+ Normal / 1770+ Hard) get their own Event section. They pay on top of the 3-raid limit, even to characters outside the top 6, and only one character per tracker can clear one per week.
 - **Weekly reset with history.** Clears reset every Wednesday and past weeks stay browsable.
+- **Rotation override.** On the configured tracker, the "Current week" name can be switched between the two names (or back to Automatic), for the current week or a past one.
 - **Drag to reorder** characters (also while sorted or filtered), with class icons and a dark, Lost Ark Nexus-inspired look.
 - **View options.** Sort by roster order, item level or combat power or show only gold earners. Preferences are remembered per browser and never change the stored order. Animations respect reduced-motion settings.
 

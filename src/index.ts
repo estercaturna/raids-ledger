@@ -22,9 +22,15 @@ const resetHour = (env: Cloudflare.Env) => Number(env.RESET_HOUR_UTC ?? 10);
 const currentWeek = (env: Cloudflare.Env) => weekStartIso(new Date(), resetHour(env));
 
 // Returns the rotation name for a week, or undefined unless every rotation var is configured.
-function weekRotation(env: Cloudflare.Env, week: string) {
+// A stored override for the week wins over the alternating name.
+function weekRotation(env: Cloudflare.Env, week: string, overrides: Map<string, string> = new Map()) {
   const { ROTATION_ANCHOR_WEEK: anchor, ROTATION_ANCHOR_NAME: a, ROTATION_OTHER_NAME: b } = env;
-  return anchor && a && b ? rotationName(week, anchor, a, b) : undefined;
+  return anchor && a && b ? (overrides.get(week) ?? rotationName(week, anchor, a, b)) : undefined;
+}
+
+async function loadRotationOverrides(db: D1Database, trackerId: string) {
+  const { results } = await db.prepare("SELECT week_start, name FROM rotation_override WHERE tracker_id = ?").bind(trackerId).all<{ week_start: string; name: string }>();
+  return new Map(results.map((r) => [r.week_start, r.name]));
 }
 
 // Keep in sync with public/_headers (static assets bypass the Worker).
@@ -123,7 +129,8 @@ app.get("/api/t/:token", async (c) => {
   const cleared = new Set(clears.map((r) => `${r.character_id}:${r.raid_key}`));
   const prefs = await loadPrefs(c.env.DB, trackerId);
 
-  const rotation = c.get("rotationEnabled") ? weekRotation(c.env, week) : undefined;
+  const overrides = c.get("rotationEnabled") ? await loadRotationOverrides(c.env.DB, trackerId) : new Map<string, string>();
+  const rotation = c.get("rotationEnabled") ? weekRotation(c.env, week, overrides) : undefined;
   const earners = goldEarnerIds(characters);
   // Event raids allow one clear per tracker per week, whichever difficulty and character.
   const eventLocks = new Map<string, { id: number; name: string }>();
@@ -135,7 +142,9 @@ app.get("/api/t/:token", async (c) => {
   return c.json({
     weekStart: week,
     nextReset: nextResetIso(week),
-    ...(rotation && { rotation: { name: rotation } }),
+    ...(rotation && {
+      rotation: { name: rotation, overridden: overrides.has(week), options: [c.env.ROTATION_ANCHOR_NAME, c.env.ROTATION_OTHER_NAME] },
+    }),
     characters: characters.map((ch) => {
       const raids = eligibleRaids(ch.ilvl, RAIDS, prefs.get(ch.id)).map((r) => ({ ...r, cleared: cleared.has(`${ch.id}:${r.key}`) }));
       const eventRaids = eligibleEventRaids(ch.ilvl, week, RAIDS, prefs.get(ch.id)).map((r) => ({
@@ -247,6 +256,29 @@ app.put("/api/t/:token/clears", async (c) => {
   return c.json({ ok: true });
 });
 
+app.put("/api/t/:token/rotation", async (c) => {
+  if (!c.get("rotationEnabled")) return c.json({ error: "not_found" }, 404);
+  const body = (await c.req.json().catch(() => null)) as { weekStart?: unknown; name?: unknown } | null;
+  const { ROTATION_ANCHOR_NAME: a, ROTATION_OTHER_NAME: b } = c.env;
+  const weekStart = body?.weekStart;
+  const validWeek =
+    typeof weekStart === "string" &&
+    !Number.isNaN(Date.parse(weekStart)) &&
+    weekStartIso(new Date(weekStart), resetHour(c.env)) === weekStart &&
+    Date.parse(weekStart) <= Date.parse(currentWeek(c.env));
+  const validName = body?.name === null || (typeof body?.name === "string" && !!a && !!b && [a, b].includes(body.name));
+  if (!validWeek || !validName) return c.json({ error: "invalid_input" }, 400);
+  const trackerId = c.get("trackerId");
+  await c.env.DB.prepare(
+    body!.name === null
+      ? "DELETE FROM rotation_override WHERE tracker_id = ? AND week_start = ?"
+      : "INSERT OR REPLACE INTO rotation_override (tracker_id, week_start, name) VALUES (?, ?, ?)",
+  )
+    .bind(...(body!.name === null ? [trackerId, weekStart] : [trackerId, weekStart, body!.name]))
+    .run();
+  return c.json({ ok: true });
+});
+
 app.put("/api/t/:token/order", async (c) => {
   const body = (await c.req.json().catch(() => null)) as { ids?: unknown } | null;
   const ids = Array.isArray(body?.ids) ? body.ids.map(Number) : [];
@@ -334,10 +366,11 @@ app.get("/api/t/:token/history", async (c) => {
   }
   const earners = goldEarnerIds(await loadCharacters(c.env.DB, trackerId));
   const rotationOn = c.get("rotationEnabled");
+  const overrides = rotationOn ? await loadRotationOverrides(c.env.DB, trackerId) : new Map<string, string>();
   return c.json({
     weeks: [...weeks].map(([weekStart, chars]) => ({
       weekStart,
-      ...(rotationOn && { rotationName: weekRotation(c.env, weekStart) }),
+      ...(rotationOn && { rotationName: weekRotation(c.env, weekStart, overrides), rotationOverridden: overrides.has(weekStart) }),
       characters: [...chars.values()].map((ch) => {
         const goldEarner = earners.has(ch.id);
         return {

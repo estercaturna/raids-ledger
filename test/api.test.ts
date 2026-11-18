@@ -1,6 +1,7 @@
 import { env, exports } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { weekStartIso } from "../src/week";
+import { hashToken } from "../src/token";
 
 const worker = (exports as unknown as { default: { fetch(r: Request): Promise<Response> } }).default;
 const api = (path: string, init?: RequestInit) => worker.fetch(new Request(`http://x${path}`, init));
@@ -329,6 +330,68 @@ describe("week rotation label", () => {
       env.WEEK_ROTATION_TOKEN_HASH = saved.WEEK_ROTATION_TOKEN_HASH;
       env.ROTATION_ANCHOR_NAME = saved.ROTATION_ANCHOR_NAME;
     }
+  });
+});
+
+describe("week rotation override", () => {
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+  const current = () => weekStartIso(new Date(), Number(env.RESET_HOUR_UTC));
+  const weekAt = (offset: number) => new Date(Date.parse(current()) + offset * WEEK).toISOString();
+  type Rot = { name: string; overridden: boolean; options: string[] };
+  const rotation = async (token: string) => ((await (await api(`/api/t/${token}`)).json()) as { rotation?: Rot }).rotation;
+  const setOverride = (token: string, weekStart: string, name: string | null) => api(`/api/t/${token}/rotation`, json("PUT", { weekStart, name }));
+
+  async function asOwner(run: (owner: string) => Promise<void>) {
+    const owner = await createTracker();
+    const saved = env.WEEK_ROTATION_TOKEN_HASH;
+    env.WEEK_ROTATION_TOKEN_HASH = await hashToken(owner);
+    try {
+      await run(owner);
+    } finally {
+      env.WEEK_ROTATION_TOKEN_HASH = saved;
+    }
+  }
+
+  it("overrides only the chosen week and can be cleared", async () => {
+    await asOwner(async (owner) => {
+      const auto = (await rotation(owner))!;
+      const other = auto.options.find((n) => n !== auto.name)!;
+      expect((await setOverride(owner, current(), other)).status).toBe(200);
+      expect(await rotation(owner)).toMatchObject({ name: other, overridden: true });
+      expect((await setOverride(owner, current(), null)).status).toBe(200);
+      expect(await rotation(owner)).toMatchObject({ name: auto.name, overridden: false });
+    });
+  });
+
+  it("applies to past weeks in history", async () => {
+    await asOwner(async (owner) => {
+      const previous = weekAt(-1);
+      const ch = ((await (await api(`/api/t/${owner}`)).json()) as { characters: { id: number }[] }).characters[0];
+      await env.DB.prepare("INSERT INTO clear (character_id, week_start, raid_key) VALUES (?, ?, 'armoche-normal')").bind(ch.id, previous).run();
+      const names = async () => ((await (await api(`/api/t/${owner}/history`)).json()) as { weeks: { rotationName: string; rotationOverridden: boolean }[] }).weeks[0];
+      const auto = await names();
+      const options = (await rotation(owner))!.options;
+      const pick = options.find((n) => n !== auto.rotationName)!;
+      expect((await setOverride(owner, previous, pick)).status).toBe(200);
+      expect(await names()).toMatchObject({ rotationName: pick, rotationOverridden: true });
+    });
+  });
+
+  it("rejects unknown names, future weeks and invalid weeks", async () => {
+    await asOwner(async (owner) => {
+      expect((await setOverride(owner, current(), "Nobody")).status).toBe(400);
+      expect((await setOverride(owner, weekAt(1), "Phirk")).status).toBe(400);
+      expect((await setOverride(owner, "2026-11-19T10:00:00.000Z", "Phirk")).status).toBe(400);
+      expect((await rotation(owner))!.overridden).toBe(false);
+    });
+  });
+
+  it("is refused for other tokens", async () => {
+    await asOwner(async () => {
+      const other = await createTracker([{ name: "Other", class: "Bard", ilvl: 1700 }]);
+      expect((await setOverride(other, current(), "Phirk")).status).toBe(404);
+      expect(await rotation(other)).toBeUndefined();
+    });
   });
 });
 

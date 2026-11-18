@@ -73,14 +73,37 @@ const topBound = (raids) => [...raids].sort((a, b) => (b.gold ?? 0) - (a.gold ??
 const fmtWeek = (iso) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 const prettyKey = (key) => key.replace(/-/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
 
+// The configured tracker can pick who plays the viewed week; "Automatic" returns to the alternating name.
+function renderRotation() {
+  const label = $("rotation");
+  const current = viewWeek === "current";
+  const week = current ? state.rotation && { weekStart: state.weekStart, name: state.rotation.name, overridden: state.rotation.overridden } : history.find((h) => h.weekStart === viewWeek) && { weekStart: viewWeek, name: history.find((h) => h.weekStart === viewWeek).rotationName, overridden: history.find((h) => h.weekStart === viewWeek).rotationOverridden };
+  label.hidden = !week?.name;
+  if (label.hidden) return;
+  const options = state.rotation?.options ?? [week.name];
+  const select = el("select", { id: "rotation-select", ariaLabel: "Who plays this week" }, new Option("Automatic", "auto"), ...options.map((n) => new Option(n, n)));
+  select.value = week.overridden ? week.name : "auto";
+  select.addEventListener("change", async () => {
+    try {
+      await send("/rotation", "PUT", { weekStart: week.weekStart, name: select.value === "auto" ? null : select.value });
+      await refresh();
+    } catch (e) {
+      select.value = week.overridden ? week.name : "auto";
+      showError(e.message);
+    }
+  });
+  label.replaceChildren(
+    el("span", {}, current ? "Current week: " : `Week of ${fmtWeek(week.weekStart)}: `, el("span", { className: "rotation-name", textContent: week.name })),
+    el("label", { className: "rotation-pick" }, "Who plays", select),
+  );
+}
+
 function renderWeeks() {
   const select = $("week");
   const who = state.rotation?.name;
   select.replaceChildren(new Option(`Current week (${fmtWeek(state.weekStart)})${who ? ` · ${who}` : ""}`, "current"));
   for (const w of history) select.append(new Option(`Week of ${fmtWeek(w.weekStart)}${w.rotationName ? ` · ${w.rotationName}` : ""}`, w.weekStart));
-  const label = $("rotation");
-  label.hidden = !who;
-  if (who) label.replaceChildren("Current week: ", el("span", { className: "rotation-name", textContent: who }));
+  renderRotation();
   select.value = viewWeek;
   const past = viewWeek !== "current";
   $("markall").hidden = past;
